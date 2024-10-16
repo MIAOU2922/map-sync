@@ -256,7 +256,7 @@ public class SyncClient {
 
 				final User session = Minecraft.getInstance().getUser();
 				Minecraft.getInstance().getMinecraftSessionService().joinServer(
-						session.getGameProfile(),
+						session.getProfileId(),
 						session.getAccessToken(),
 						shaHex
 				);

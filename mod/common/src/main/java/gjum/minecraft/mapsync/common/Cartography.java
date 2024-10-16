@@ -5,6 +5,7 @@ import gjum.minecraft.mapsync.common.utils.Hasher;
 import io.netty.buffer.Unpooled;
 import net.minecraft.client.Minecraft;
 import net.minecraft.core.BlockPos;
+import net.minecraft.tags.BlockTags;
 import net.minecraft.world.level.Level;
 import net.minecraft.world.level.LightLayer;
 import net.minecraft.world.level.chunk.LevelChunk;
@@ -47,7 +48,7 @@ public class Cartography {
 		var bs = chunk.getBlockState(pos);
 		do {
 			layers.add(new BlockInfo(pos.getY(), bs));
-			if (bs.getMaterial().isSolidBlocking()) break;
+			if (bs.canOcclude()) break; // TODO: Check that this is valid
 			var prevBS = bs;
 			do {
 				pos.setY(--y);

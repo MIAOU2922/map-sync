@@ -14,12 +14,11 @@ dependencies {
 	modImplementation "net.fabricmc:fabric-loader:${rootProject.fabric_loader_version}"
 
 
-	// https://modrinth.com/mod/voxelmap-updated/version/1.18.2-1.11.2 (1.11.2 fabric)
-	modCompileOnly("maven.modrinth:voxelmap-updated:SDVTG1wT")
-	// https://modrinth.com/mod/journeymap/version/1.18.2-5.9.7-fabric (5.9.7 fabric)
-	modCompileOnly("maven.modrinth:journeymap:5JbcGXLn")
-	// https://modrinth.com/mod/xaeros-minimap/version/23.6.2_Fabric_1.18.2 (23.6.2 fabric)
-	modCompileOnly("maven.modrinth:xaeros-minimap:Jwydpps9")
+	// https://modrinth.com/mod/voxelmap-updated/version/1.21-1.13.1
+	modCompileOnly("maven.modrinth:voxelmap-updated:QZuVdvFR")
+	// https://modrinth.com/mod/journeymap/version/1.21-6.0.0-beta.27+fabric
+	// TODO: Update to a release version at the earliest opportunity!
+	modCompileOnly("maven.modrinth:journeymap:VQ3Tn9v9")
 }
 
 tasks {

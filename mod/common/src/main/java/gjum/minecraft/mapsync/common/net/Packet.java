@@ -68,7 +68,7 @@ public interface Packet {
 	) {
 		return ResourceKey.create(
 				registry,
-				new ResourceLocation(readUtf8String(in))
+				ResourceLocation.tryParse(readUtf8String(in))
 		);
 	}
 

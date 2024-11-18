@@ -3,7 +3,9 @@ package gjum.minecraft.mapsync.common.net.packet;
 import gjum.minecraft.mapsync.common.data.CatchupChunk;
 import gjum.minecraft.mapsync.common.net.Packet;
 import io.netty.buffer.ByteBuf;
-import net.minecraft.core.Registry;
+import net.minecraft.core.registries.Registries;
+import net.minecraft.resources.ResourceKey;
+import net.minecraft.world.level.Level;
 import org.jetbrains.annotations.NotNull;
 
 import java.util.ArrayList;
@@ -27,7 +29,7 @@ public class ClientboundChunkTimestampsResponsePacket implements Packet {
 	}
 
 	public static Packet read(ByteBuf buf) {
-		var dimension = Packet.readResourceKey(buf, Registry.DIMENSION_REGISTRY);
+		final ResourceKey<Level> dimension = Packet.readResourceKey(buf, Registries.DIMENSION);
 
 		int length = buf.readInt();
 		List<CatchupChunk> chunks = new ArrayList<>(length);

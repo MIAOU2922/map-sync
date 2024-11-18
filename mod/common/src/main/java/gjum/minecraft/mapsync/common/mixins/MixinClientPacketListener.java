@@ -67,15 +67,4 @@ public abstract class MixinClientPacketListener {
 			printErrorRateLimited(e);
 		}
 	}
-
-	@Inject(method = "handleBlockBreakAck", at = @At("RETURN"))
-	protected void onHandleBlockBreakAck(ClientboundBlockBreakAckPacket packet, CallbackInfo ci) {
-		if (!Minecraft.getInstance().isSameThread()) return; // will be called again on mc thread in a moment
-		try {
-			BlockPos pos = packet.pos();
-			getMod().handleMcChunkPartialChange(pos.getX() >> 4, pos.getZ() >> 4);
-		} catch (Throwable e) {
-			printErrorRateLimited(e);
-		}
-	}
 }

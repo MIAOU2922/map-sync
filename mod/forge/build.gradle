@@ -19,6 +19,11 @@ configurations {
 	compileClasspath.extendsFrom common
 	runtimeClasspath.extendsFrom common
 	developmentForge.extendsFrom common
+
+	// Weird fix: https://discord.com/channels/792699517631594506/792701725106634783/1272848116864909314
+	configureEach {
+		resolutionStrategy.force("net.sf.jopt-simple:jopt-simple:5.0.4")
+	}
 }
 
 dependencies {

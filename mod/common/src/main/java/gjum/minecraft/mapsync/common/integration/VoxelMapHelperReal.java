@@ -1,12 +1,12 @@
 package gjum.minecraft.mapsync.common.integration;
 
-import com.mamiyaotaru.voxelmap.interfaces.AbstractVoxelMap;
+import com.mamiyaotaru.voxelmap.VoxelConstants;
 import com.mamiyaotaru.voxelmap.persistent.*;
 import gjum.minecraft.mapsync.common.data.BlockInfo;
 import gjum.minecraft.mapsync.common.data.ChunkTile;
 import net.minecraft.client.multiplayer.ClientLevel;
+import net.minecraft.tags.BlockTags;
 import net.minecraft.world.level.block.Blocks;
-import net.minecraft.world.level.material.Material;
 import org.jetbrains.annotations.NotNull;
 import org.jetbrains.annotations.Nullable;
 
@@ -14,8 +14,6 @@ import java.lang.reflect.*;
 import java.util.List;
 import java.util.concurrent.ConcurrentHashMap;
 import java.util.concurrent.locks.ReentrantLock;
-
-import static gjum.minecraft.mapsync.common.Utils.getBiomeRegistry;
 
 public class VoxelMapHelperReal {
 	// TODO use mixins to access package-/private fields/methods
@@ -62,8 +60,7 @@ public class VoxelMapHelperReal {
 	static boolean isMapping() {
 		if (worldField == null) return false;
 		try {
-			var vm = AbstractVoxelMap.getInstance();
-			PersistentMap map = (PersistentMap) vm.getPersistentMap();
+			PersistentMap map = VoxelConstants.getVoxelMapInstance().getPersistentMap();
 			var world = (ClientLevel) worldField.get(map);
 			return world != null;
 		} catch (IllegalAccessException ignored) {
@@ -89,14 +86,12 @@ public class VoxelMapHelperReal {
 				int x0 = (chunkTile.x() * 16) & 0xff;
 				int z0 = (chunkTile.z() * 16) & 0xff;
 
-				var biomeReg = getBiomeRegistry();
-
 				int i = 0;
 				for (int z = z0; z < z0 + 16; ++z) {
 					for (int x = x0; x < x0 + 16; ++x) {
 						var col = chunkTile.columns()[i++];
 
-						mapData.setBiomeID(x, z, biomeReg.getId(col.biome()));
+						mapData.setBiome(x, z, col.biome());
 
 						int light = 0xf0 | col.light();
 						mapData.setTransparentLight(x, z, light);
@@ -136,7 +131,7 @@ public class VoxelMapHelperReal {
 		if (layers.size() > 1) transparent = layers.get(0);
 		surface = layers.get(layers.size() - 1);
 		// trees hack
-		if (layers.get(0).state().getMaterial() == Material.LEAVES) {
+		if (layers.get(0).state().is(BlockTags.LEAVES)) {
 			surface = layers.get(0);
 		}
 
@@ -153,8 +148,7 @@ public class VoxelMapHelperReal {
 	@NotNull
 	private static CachedRegion getRegion(int rx, int rz)
 			throws IllegalAccessException, InvocationTargetException {
-		var vm = AbstractVoxelMap.getInstance();
-		PersistentMap map = (PersistentMap) vm.getPersistentMap();
+		PersistentMap map = VoxelConstants.getVoxelMapInstance().getPersistentMap();
 
 		@SuppressWarnings("unchecked")
 		var cachedRegions = (ConcurrentHashMap<String, CachedRegion>) cachedRegionsField.get(map);
@@ -164,8 +158,8 @@ public class VoxelMapHelperReal {
 
 		var world = (ClientLevel) worldField.get(map);
 
-		String worldName = vm.getWaypointManager().getCurrentWorldName();
-		String subWorldName = vm.getWaypointManager().getCurrentSubworldDescriptor(false);
+		String worldName = VoxelConstants.getVoxelMapInstance().getWaypointManager().getCurrentWorldName();
+		String subWorldName = VoxelConstants.getVoxelMapInstance().getWaypointManager().getCurrentSubworldDescriptor(false);
 
 		String key = rx + "," + rz;
 

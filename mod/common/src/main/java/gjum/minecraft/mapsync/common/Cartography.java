@@ -43,7 +43,7 @@ public class Cartography {
 	public static BlockColumn blockColumnFromChunk(LevelChunk chunk, BlockPos.MutableBlockPos pos) {
 		var layers = new ArrayList<BlockInfo>();
 		int y = chunk.getHeight(Heightmap.Types.WORLD_SURFACE, pos.getX(), pos.getZ());
-		int minBuildHeight = chunk.getLevel().getMinBuildHeight();
+		int minBuildHeight = chunk.getMinY();
 		pos.setY(y);
 		var bs = chunk.getBlockState(pos);
 		do {

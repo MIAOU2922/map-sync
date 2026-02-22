@@ -133,7 +133,7 @@ public class SyncClient {
 							getMod().getVersion(),
 							Minecraft.getInstance().getUser().getName(),
 							gameAddress,
-							getMod().getDimensionState().dimension.location().toString()));
+							getMod().getDimensionState().dimension.registry().toString()));
 				} else {
 					handleDisconnect(future.cause());
 				}
@@ -255,7 +255,7 @@ public class SyncClient {
 				);
 
 				final User session = Minecraft.getInstance().getUser();
-				Minecraft.getInstance().getMinecraftSessionService().joinServer(
+				Minecraft.getInstance().services().sessionService().joinServer(
 						session.getProfileId(),
 						session.getAccessToken(),
 						shaHex

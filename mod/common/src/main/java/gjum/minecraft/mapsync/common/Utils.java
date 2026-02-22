@@ -12,7 +12,7 @@ public class Utils {
 	public static final Minecraft mc = Minecraft.getInstance();
 
 	public static Registry<Biome> getBiomeRegistry() {
-		return Minecraft.getInstance().level.registryAccess().registryOrThrow(Registries.BIOME);
+		return Minecraft.getInstance().level.registryAccess().lookupOrThrow(Registries.BIOME);
 	}
 
 	private static HashMap<String, Long> lastTimeSeenError = new HashMap<>();

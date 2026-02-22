@@ -32,8 +32,8 @@ public class ModGui extends Screen {
 	}
 
 	@Override
-	public void resize(Minecraft mc, int width, int height) {
-		super.resize(mc, width, height);
+	public void resize(int width, int height) {
+		super.resize(width, height);
 		init();
 	}
 
@@ -103,7 +103,7 @@ public class ModGui extends Screen {
 			if (dimensionState != null) {
 				String counterText = String.format(
 						"In dimension %s, received %d chunks, rendered %d, rendering %d",
-						dimensionState.dimension.location(),
+						dimensionState.dimension.registry(),
 						dimensionState.getNumChunksReceived(),
 						dimensionState.getNumChunksRendered(),
 						dimensionState.getRenderQueueSize()

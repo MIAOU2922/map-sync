@@ -11,6 +11,7 @@ import net.minecraft.client.Minecraft;
 import net.minecraft.client.multiplayer.ServerData;
 import net.minecraft.network.protocol.game.ClientboundLoginPacket;
 import net.minecraft.network.protocol.game.ClientboundRespawnPacket;
+import net.minecraft.resources.Identifier;
 import org.apache.logging.log4j.LogManager;
 import org.apache.logging.log4j.Logger;
 import org.jetbrains.annotations.NotNull;
@@ -37,11 +38,17 @@ public abstract class MapSyncMod {
 		return INSTANCE;
 	}
 
+    public static final String MOD_ID = "mapsync";
+
+    public static final Identifier CATEGORY_ID = Identifier.fromNamespaceAndPath(MOD_ID, "general");
+    public static final KeyMapping.Category CATEGORY = KeyMapping.Category.register(CATEGORY_ID);
+
 	private static final KeyMapping openGuiKey = new KeyMapping(
 			"key.map-sync.openGui",
 			InputConstants.Type.KEYSYM,
 			GLFW.GLFW_KEY_COMMA,
-			"category.map-sync"
+            CATEGORY
+			//"category.map-sync"
 	);
 
 	private @NotNull List<SyncClient> syncClients = new ArrayList<>();
@@ -222,7 +229,7 @@ public abstract class MapSyncMod {
 	public void handleRegionTimestamps(ClientboundRegionTimestampsPacket packet, SyncClient client) {
 		DimensionState dimension = getDimensionState();
 		if (dimension == null) return;
-		if (!dimension.dimension.location().toString().equals(packet.getDimension())) {
+		if (!dimension.dimension.registry().toString().equals(packet.getDimension())) {
 			return;
 		}
 		var outdatedRegions = new ArrayList<RegionPos>();

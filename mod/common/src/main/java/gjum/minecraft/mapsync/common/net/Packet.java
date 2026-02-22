@@ -4,7 +4,7 @@ import io.netty.buffer.ByteBuf;
 import java.nio.charset.StandardCharsets;
 import net.minecraft.core.Registry;
 import net.minecraft.resources.ResourceKey;
-import net.minecraft.resources.ResourceLocation;
+import net.minecraft.resources.Identifier;
 import org.apache.commons.lang3.NotImplementedException;
 import org.jetbrains.annotations.NotNull;
 
@@ -68,7 +68,7 @@ public interface Packet {
 	) {
 		return ResourceKey.create(
 				registry,
-				ResourceLocation.tryParse(readUtf8String(in))
+				Identifier.tryParse(readUtf8String(in))
 		);
 	}
 
@@ -78,7 +78,7 @@ public interface Packet {
 	) {
 		writeUtf8String(
 				out,
-				resourceKey.location().toString()
+				resourceKey.registry().toString()
 		);
 	}
 }

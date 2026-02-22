@@ -7,7 +7,7 @@ public class VoxelMapHelper {
 
 	static {
 		try {
-			Class.forName("com.mamiyaotaru.voxelmap.interfaces.AbstractVoxelMap");
+			Class.forName("com.mamiyaotaru.voxelmap.interfaces.AbstractMapData");
 			isVoxelMapNotAvailable = false;
 		} catch (NoClassDefFoundError | ClassNotFoundException ignored) {
 			isVoxelMapNotAvailable = true;

@@ -114,7 +114,7 @@ public class SyncClient {
 				public void initChannel(SocketChannel ch) {
 					ch.pipeline().addLast(
 							new LengthFieldPrepender(4),
-							new LengthFieldBasedFrameDecoder(1 << 15, 0, 4, 0, 4),
+							new LengthFieldBasedFrameDecoder(1 << 20, 0, 4, 0, 4),
 							new ClientboundPacketDecoder(),
 							new ServerboundPacketEncoder(),
 							new ClientHandler(SyncClient.this));
@@ -133,7 +133,7 @@ public class SyncClient {
 							getMod().getVersion(),
 							Minecraft.getInstance().getUser().getName(),
 							gameAddress,
-							getMod().getDimensionState().dimension.registry().toString()));
+							getMod().getDimensionState().dimension.identifier().toString()));
 				} else {
 					handleDisconnect(future.cause());
 				}

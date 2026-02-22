@@ -123,9 +123,9 @@ async function handle_input(input: string): Promise<void> {
         metadata.whitelist.delete(uuid);
         await metadata.saveWhitelist();
     } else if (command === "list") {
+        let i = 1;
         for (const key in tcpServer.clients) {
             let client = tcpServer.clients[key];
-            let i = 1;
             console.log(`${i++}. ${client.mcName}: ${client.uuid}`)
 
         }

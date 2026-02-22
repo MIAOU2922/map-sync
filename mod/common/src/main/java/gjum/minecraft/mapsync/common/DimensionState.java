@@ -27,7 +27,7 @@ public class DimensionState {
 
 	DimensionState(String mcServerName, ResourceKey<Level> dimension) {
 		this.dimension = dimension;
-		String dimensionName = dimension.registry().toString();
+		String dimensionName = dimension.identifier().toString();
 		chunkMeta = new DimensionChunkMeta(mcServerName, dimensionName);
 		renderQueue = new RenderQueue(this);
 		catchup = new CatchupLogic(this);

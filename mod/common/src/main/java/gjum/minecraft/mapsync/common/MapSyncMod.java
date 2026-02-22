@@ -229,7 +229,7 @@ public abstract class MapSyncMod {
 	public void handleRegionTimestamps(ClientboundRegionTimestampsPacket packet, SyncClient client) {
 		DimensionState dimension = getDimensionState();
 		if (dimension == null) return;
-		if (!dimension.dimension.registry().toString().equals(packet.getDimension())) {
+		if (!dimension.dimension.identifier().toString().equals(packet.getDimension())) {
 			return;
 		}
 		var outdatedRegions = new ArrayList<RegionPos>();

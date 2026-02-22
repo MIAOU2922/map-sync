@@ -78,7 +78,7 @@ public interface Packet {
 	) {
 		writeUtf8String(
 				out,
-				resourceKey.registry().toString()
+				resourceKey.identifier().toString()
 		);
 	}
 }

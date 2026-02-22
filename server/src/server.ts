@@ -197,6 +197,18 @@ export class TcpClient {
         await this.sendInternal(pkt, true);
     }
 
+    /**
+     * Sends a packet to the client through the socket, optionally encrypting it.
+     *
+     * @param pkt - The packet to send, encoded as a `ServerPacket`.
+     * @param doCrypto - If `true`, the packet is encrypted before sending. Defaults to `false`.
+     * @throws If encryption is requested but the handshake is not finished.
+     *
+     * @remarks
+     * - Reserves space for the packet length, encodes the packet, and writes the actual length.
+     * - If encryption is enabled, waits for the handshake to complete and encrypts the buffer.
+     * - Drops the packet if the socket is not writable.
+     */
     private async sendInternal(pkt: ServerPacket, doCrypto = false) {
         if (!this.socket.writable)
             return this.debug("Socket closed, dropping", pkt.type);

@@ -40,20 +40,28 @@ public class ModGui extends Screen {
 	@Override
 	protected void init() {
 		try {
+			MapSyncMod.logger.info("ModGui.init() called; width={}, height={}", width, height);
+
 			left = width / 2 - innerWidth / 2;
 			right = width / 2 + innerWidth / 2;
 			top = height / 3;
+
+            int centerX = width / 2;
+            int centerY = width / 2;
+
+            int buttonWidth = 100;
+            int buttonHeight = 20;
 
 			clearWidgets();
 
 			addRenderableWidget(
 				Button.builder(Component.literal("Close"), (button) -> minecraft.setScreen(parentScreen))
-					.pos(right - 100, top)
-					.width(100)
+					.bounds(centerX - (buttonWidth / 2), centerY, buttonWidth, buttonHeight)
 					.build()
 			);
 
 			if (serverConfig != null) {
+			    MapSyncMod.logger.info("serverConfig is not null");
 				addWidget(syncServerAddressField = new EditBox(font,
 						left,
 						top + 40,
@@ -90,12 +98,14 @@ public class ModGui extends Screen {
 
 	@Override
 	public void render(@NotNull GuiGraphics guiGraphics, int i, int j, float f) {
+        super.render(guiGraphics, i, j, f);
+
 		try {
 			// wait for init() to finish
 			if (syncServerAddressField == null) return;
 			if (syncServerConnectBtn == null) return;
 
-			renderBackground(guiGraphics, i, j, f);
+			//renderBackground(guiGraphics, i, j, f);
 			guiGraphics.drawCenteredString(font, title, width / 2, top, 0xFFFFFF);
 			syncServerAddressField.render(guiGraphics, i, j, f);
 

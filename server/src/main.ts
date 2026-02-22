@@ -1,4 +1,5 @@
 import "./cli";
+import { setServer } from './cli';
 import * as database from "./database";
 import * as metadata from "./metadata";
 import { ClientPacket } from "./protocol";
@@ -8,6 +9,7 @@ import { TcpClient, TcpServer } from "./server";
 import { RegionCatchupPacket } from "./protocol/RegionCatchupPacket";
 
 let config: metadata.Config = null!;
+let main: Main = null!;
 Promise.resolve().then(async () => {
     await database.setup();
 
@@ -18,13 +20,14 @@ Promise.resolve().then(async () => {
     await metadata.loadWhitelist();
     await metadata.loadUuidCache();
 
-    new Main();
+    main = new Main();
+    setServer(main.server);
 });
 
 type ProtocolClient = TcpClient; // TODO cleanup
 
 export class Main {
-    server = new TcpServer(this);
+    server: TcpServer = new TcpServer(this);
 
     //Cannot be async, as it's caled from a synchronous constructor
     handleClientConnected(client: ProtocolClient) {}

@@ -8,7 +8,7 @@
         "build": "tsc",
         "format": "prettier -w .",
         "test": "true",
-        "start": "node -r source-map-support/register dist/main.js",
+        "start": "node --security-revert=CVE-2023-46809 -r source-map-support/register dist/main.js",
         "start:dev": "tsc && node --inspect -r source-map-support/register dist/main.js"
     },
     "dependencies": {

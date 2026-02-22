@@ -2,6 +2,7 @@ import lib_readline from "readline";
 import lib_stream from "stream";
 
 import * as metadata from "./metadata";
+import { TcpServer } from "./server";
 
 //idk where these come from lol
 interface TerminalExtras {
@@ -13,6 +14,9 @@ const term = lib_readline.createInterface({
     input: process.stdin,
     output: process.stdout,
 }) as TermType;
+
+let tcpServer: TcpServer;
+export function setServer(server: TcpServer): void { tcpServer = server; }
 
 if (!("MAPSYNC_DUMB_TERM" in process.env)) {
     //Adapted from https://stackoverflow.com/questions/10606814/readline-with-console-log-in-the-background/10608048#10608048
@@ -118,6 +122,13 @@ async function handle_input(input: string): Promise<void> {
         if (uuid == null) throw new Error("No cached UUID for IGN " + ign);
         metadata.whitelist.delete(uuid);
         await metadata.saveWhitelist();
+    } else if (command === "list") {
+        for (const key in tcpServer.clients) {
+            let client = tcpServer.clients[key];
+            let i = 1;
+            console.log(`${i++}. ${client.mcName}: ${client.uuid}`)
+
+        }
     } else {
         throw new Error(`Unknown command "${command}"`);
     }

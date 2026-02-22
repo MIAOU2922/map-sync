@@ -2,8 +2,9 @@
 // See Gradle's releases here: https://gradle.org/releases/
 
 plugins {
-	id "architectury-plugin" version "3.4-SNAPSHOT"
-	id "dev.architectury.loom" version "1.7-SNAPSHOT" apply false
+//	id "dev.architectury.loom" version "1.7-SNAPSHOT" apply false
+ 	id "architectury-plugin" version "3.4-SNAPSHOT"
+	id "dev.architectury.loom" version "1.13-SNAPSHOT" apply false
 }
 
 architectury {
@@ -21,7 +22,7 @@ subprojects {
 		minecraft "com.mojang:minecraft:${rootProject.minecraft_version}"
 		mappings loom.layered() {
 			officialMojangMappings()
-			parchment("org.parchmentmc.data:${project.parchment_name}:${project.parchment_version}@zip")
+			parchment("org.parchmentmc.data:parchment-${project.minecraft_version}:${project.parchment_version}@zip")
 		}
 	}
 }

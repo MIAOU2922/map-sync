@@ -1,9 +1,13 @@
 package gjum.minecraft.mapsync.common.integration;
 
-import gjum.minecraft.mapsync.common.data.*;
+import gjum.minecraft.mapsync.common.data.BlockColumn;
+import gjum.minecraft.mapsync.common.data.BlockInfo;
+import gjum.minecraft.mapsync.common.data.ChunkTile;
 import journeymap.client.JourneymapClient;
 import journeymap.client.io.FileHandler;
-import journeymap.client.model.*;
+import journeymap.client.model.chunk.NBTChunkMD;
+import journeymap.client.model.map.MapType;
+import journeymap.client.model.region.RegionCoord;
 import journeymap.common.nbt.RegionData;
 import journeymap.common.nbt.RegionDataStorageHandler;
 import net.minecraft.core.BlockPos;

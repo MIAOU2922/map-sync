@@ -40,6 +40,15 @@ processResources {
 	}
 }
 
+loom {
+    runs {
+        client {
+            vmArgs "-Ddevauth.enabled=true"
+            ideConfigGenerated = true
+        }
+    }
+}
+
 shadowJar {
 	configurations = [project.configurations.shadowCommon]
 	archiveClassifier = "dev-shadow"

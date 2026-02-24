@@ -10,4 +10,4 @@ services:
     ports:
       - 12312:12312
     volumes:
-      - ./data:/mapsync_data
+      - ./data:/data

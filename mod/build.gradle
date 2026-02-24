@@ -2,7 +2,6 @@
 // See Gradle's releases here: https://gradle.org/releases/
 
 plugins {
-//	id "dev.architectury.loom" version "1.7-SNAPSHOT" apply false
  	id "architectury-plugin" version "3.4-SNAPSHOT"
 	id "dev.architectury.loom" version "1.13-SNAPSHOT" apply false
 }
@@ -49,6 +48,7 @@ allprojects {
 				includeGroup "maven.modrinth"
 			}
 		}
+        maven { url = "https://pkgs.dev.azure.com/djtheredstoner/DevAuth/_packaging/public/maven/v1" }
 	}
 
 	tasks.withType(JavaCompile) {

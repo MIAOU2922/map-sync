@@ -134,7 +134,7 @@ export class Main {
                 type: "ChunkTile",
                 world: pkt.world,
                 chunk_x: req.chunkX,
-                chunk_z: req.chunkX,
+                chunk_z: req.chunkZ,
                 ts: req.timestamp,
                 data: {
                     hash: chunk.hash,

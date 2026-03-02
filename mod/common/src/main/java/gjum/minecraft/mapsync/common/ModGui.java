@@ -27,6 +27,7 @@ public class ModGui extends Screen {
 
 	EditBox syncServerAddressField;
 	Button syncServerConnectBtn;
+	Button syncServerDisconnectBtn;
 
 	public ModGui(Screen parentScreen) {
 		super(Component.literal("Map-Sync"));
@@ -78,7 +79,11 @@ public class ModGui extends Screen {
 						.build()
 				);
 
-				
+				addRenderableWidget(
+					syncServerDisconnectBtn = Button.builder(Component.literal("Disconnect"), this::disconnectClicked)
+					.bounds(centerX - 100/2, syncServerAddressField.getY() + 25, 100, 20)
+					.build()
+				);
 			}
 		} catch (Throwable e) {
 			e.printStackTrace();
@@ -93,9 +98,17 @@ public class ModGui extends Screen {
 			getMod().shutDownSyncClients();
 			getMod().getSyncClients();
 			btn.active = false;
+			syncServerDisconnectBtn.active = true;
 		} catch (Throwable e) {
 			e.printStackTrace();
 		}
+	}
+
+	// TODO: not working
+	public void disconnectClicked(Button btn) {
+		if (syncServerAddressField == null) return;
+		getMod().shutDownSyncClients();
+		btn.active = false;
 	}
 
 	@Override
@@ -110,6 +123,7 @@ public class ModGui extends Screen {
 			guiGraphics.drawCenteredString(font, title, centerX, top, 0xFFFFFFFF);
 			syncServerAddressField.render(guiGraphics, i, j, f);
 			syncServerConnectBtn.render(guiGraphics, j, j, i);
+			syncServerDisconnectBtn.render(guiGraphics, j, j, i);
 
 			var dimensionState = getMod().getDimensionState();
 			if (dimensionState != null) {

@@ -27,6 +27,7 @@ public class ModGui extends Screen {
 
 	EditBox syncServerAddressField;
 	Button syncServerConnectBtn;
+	Button syncServerPurgeBtn;
 
 	public ModGui(Screen parentScreen) {
 		super(Component.literal("Map-Sync"));
@@ -78,7 +79,12 @@ public class ModGui extends Screen {
 						.build()
 				);
 
-				
+				addRenderableWidget(
+					syncServerPurgeBtn = Button.builder(Component.literal("Purge"), this::purgeClicked)
+						.bounds(width - 60, top + 40, 60, 20)
+						.bounds(10, height - 30, 60, 20)
+						.build()
+				);
 			}
 		} catch (Throwable e) {
 			e.printStackTrace();
@@ -98,6 +104,13 @@ public class ModGui extends Screen {
 		}
 	}
 
+	public void purgeClicked(Button btn) {
+		DimensionState dimState = getMod().getDimensionState();
+		if (dimState != null) {
+			dimState.PurgeRegionTimeStamps();
+		}
+	}
+
 	@Override
 	public void render(@NotNull GuiGraphics guiGraphics, int i, int j, float f) {
 		
@@ -110,6 +123,7 @@ public class ModGui extends Screen {
 			guiGraphics.drawCenteredString(font, title, centerX, top, 0xFFFFFFFF);
 			syncServerAddressField.render(guiGraphics, i, j, f);
 			syncServerConnectBtn.render(guiGraphics, j, j, i);
+			syncServerPurgeBtn.render(guiGraphics, j, j, i);
 
 			var dimensionState = getMod().getDimensionState();
 			if (dimensionState != null) {

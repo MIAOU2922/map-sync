@@ -58,6 +58,25 @@ public class DimensionChunkMeta {
 		writeRegionTimestampsFile(regionPos, regionTimestamps);
 	}
 
+	// Only call this to clear memory-cache
+	public synchronized void PurgeRegionTimeStamps() {
+		regionsTimestamps.clear();
+		try {
+			Path dir = Path.of(dimensionDirPath);
+			if (Files.exists(dir)) {
+				Files.walk(dir)
+					.sorted((a, b) -> b.compareTo(a)) // delete children first
+					.forEach(path -> {
+						try { Files.delete(path); }
+						catch (IOException e) { e.printStackTrace(); }
+					});
+			}
+			Files.createDirectories(dir);
+		} catch (IOException e) {
+			e.printStackTrace();
+		}
+	}
+
 	private long[] readRegionTimestampsFile(RegionPos regionPos) {
 		long[] longs = new long[RegionPos.CHUNKS_IN_REGION];
 		try {

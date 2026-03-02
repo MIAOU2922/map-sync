@@ -1,7 +1,6 @@
 package gjum.minecraft.mapsync.common;
 
 import gjum.minecraft.mapsync.common.config.ServerConfig;
-import net.minecraft.client.Minecraft;
 import net.minecraft.client.gui.GuiGraphics;
 import net.minecraft.client.gui.components.Button;
 import net.minecraft.client.gui.components.EditBox;
@@ -23,8 +22,12 @@ public class ModGui extends Screen {
 	int right;
 	int top;
 
+	int centerX = width / 2;
+	int centerY = width / 2;
+
 	EditBox syncServerAddressField;
 	Button syncServerConnectBtn;
+	Button syncServerPurgeBtn;
 
 	public ModGui(Screen parentScreen) {
 		super(Component.literal("Map-Sync"));
@@ -46,8 +49,8 @@ public class ModGui extends Screen {
 			right = width / 2 + innerWidth / 2;
 			top = height / 3;
 
-            int centerX = width / 2;
-            int centerY = width / 2;
+            centerX = width / 2;
+            centerY = width / 2;
 
             int buttonWidth = 100;
             int buttonHeight = 20;
@@ -61,7 +64,6 @@ public class ModGui extends Screen {
 			);
 
 			if (serverConfig != null) {
-			    MapSyncMod.logger.info("serverConfig is not null");
 				addWidget(syncServerAddressField = new EditBox(font,
 						left,
 						top + 40,
@@ -73,8 +75,14 @@ public class ModGui extends Screen {
 
 				addRenderableWidget(
 					syncServerConnectBtn = Button.builder(Component.literal("Connect"), this::connectClicked)
-						.pos(right - 100, top + 40)
-						.width(100)
+						.bounds(right - 100, top + 40, 100, 20)
+						.build()
+				);
+
+				addRenderableWidget(
+					syncServerPurgeBtn = Button.builder(Component.literal("Purge"), this::purgeClicked)
+						.bounds(width - 60, top + 40, 60, 20)
+						.bounds(10, height - 30, 60, 20)
 						.build()
 				);
 			}
@@ -96,18 +104,26 @@ public class ModGui extends Screen {
 		}
 	}
 
+	public void purgeClicked(Button btn) {
+		DimensionState dimState = getMod().getDimensionState();
+		if (dimState != null) {
+			dimState.PurgeRegionTimeStamps();
+		}
+	}
+
 	@Override
 	public void render(@NotNull GuiGraphics guiGraphics, int i, int j, float f) {
-        super.render(guiGraphics, i, j, f);
-
+		
 		try {
 			// wait for init() to finish
 			if (syncServerAddressField == null) return;
 			if (syncServerConnectBtn == null) return;
+			super.render(guiGraphics, i, j, f);
 
-			//renderBackground(guiGraphics, i, j, f);
-			guiGraphics.drawCenteredString(font, title, width / 2, top, 0xFFFFFF);
+			guiGraphics.drawCenteredString(font, title, centerX, top, 0xFFFFFFFF);
 			syncServerAddressField.render(guiGraphics, i, j, f);
+			syncServerConnectBtn.render(guiGraphics, j, j, i);
+			syncServerPurgeBtn.render(guiGraphics, j, j, i);
 
 			var dimensionState = getMod().getDimensionState();
 			if (dimensionState != null) {
@@ -118,32 +134,30 @@ public class ModGui extends Screen {
 						dimensionState.getNumChunksRendered(),
 						dimensionState.getRenderQueueSize()
 				);
-				guiGraphics.drawString(font, counterText, left, top + 70, 0x888888);
+				guiGraphics.drawCenteredString(font, counterText, centerX, syncServerAddressField.getY() - 20, 0xFF888888);
 			}
 
 			int numConnected = 0;
-			int msgY = top + 90;
+			int msgY = syncServerAddressField.getY() - 40;
 			var syncClients = getMod().getSyncClients();
 			for (var client : syncClients) {
 				int statusColor;
 				String statusText;
 				if (client.isEncrypted()) {
 					numConnected++;
-					statusColor = 0x008800;
+					statusColor = 0xFF008800;
 					statusText = "Connected";
 				} else if (client.getError() != null) {
-					statusColor = 0xff8888;
+					statusColor = 0xFFff8888;
 					statusText = client.getError();
 				} else {
-					statusColor = 0xffffff;
+					statusColor = 0xFFffffff;
 					statusText = "Connecting...";
 				}
 				statusText = client.address + "  " + statusText;
 				guiGraphics.drawString(font, statusText, left, msgY, statusColor);
 				msgY += 10;
 			}
-
-			super.render(guiGraphics, i, j, f);
 		} catch (Throwable e) {
 			e.printStackTrace();
 		}

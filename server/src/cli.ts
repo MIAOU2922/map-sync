@@ -4,6 +4,8 @@ import lib_stream from "stream";
 import * as metadata from "./metadata";
 import { TcpServer } from "./server";
 
+import * as database from "./database";
+
 //idk where these come from lol
 interface TerminalExtras {
     output: lib_stream.Writable;
@@ -127,8 +129,31 @@ async function handle_input(input: string): Promise<void> {
         for (const key in tcpServer.clients) {
             let client = tcpServer.clients[key];
             console.log(`${i++}. ${client.mcName}: ${client.uuid}`)
-
         }
+    } else if (command === "send") {
+        const target = extras.trim(); // IGN or UUID
+
+        const client = Object.values(tcpServer.clients).find(
+            (c) => c.mcName === target || c.uuid === target,
+        );
+        if (!client) { console.log("No online client with that name/UUID"); return; }
+
+        const world = client.world;
+        if (!world) { console.log("Client has no world yet"); return; }
+
+        const regions = await database.getRegionTimestamps(world);
+        await client.send({
+            type: "RegionTimestamps",
+            world,
+            regions,
+        });
+    } else if (command === "kick") {
+        const target = extras.trim(); // IGN or UUID
+
+        const client = Object.values(tcpServer.clients).find(
+            (c) => c.mcName === target || c.uuid === target,
+        );
+        client?.kick("Kicked by administrator");
     } else {
         throw new Error(`Unknown command "${command}"`);
     }

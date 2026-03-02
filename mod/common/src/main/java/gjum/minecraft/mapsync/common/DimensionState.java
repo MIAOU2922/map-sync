@@ -51,6 +51,8 @@ public class DimensionState {
 		chunkMeta.setTimestamp(chunkPos, timestamp);
 	}
 
+	public void PurgeRegionTimeStamps() { chunkMeta.PurgeRegionTimeStamps(); }
+
 	public int getNumChunksReceived() {
 		return numChunksReceived;
 	}

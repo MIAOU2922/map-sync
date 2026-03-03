@@ -5,6 +5,7 @@ import gjum.minecraft.mapsync.common.data.BlockInfo;
 import gjum.minecraft.mapsync.common.data.ChunkTile;
 import net.minecraft.core.BlockPos;
 import net.minecraft.core.Holder;
+import net.minecraft.resources.ResourceKey;
 import net.minecraft.world.level.ChunkPos;
 import net.minecraft.world.level.Level;
 import net.minecraft.world.level.biome.Biome;
@@ -17,6 +18,7 @@ import net.minecraft.world.level.chunk.UpgradeData;
 import net.minecraft.world.level.levelgen.blending.BlendingData;
 import net.minecraft.world.level.material.Fluid;
 import net.minecraft.world.ticks.LevelChunkTicks;
+import org.jetbrains.annotations.NotNull;
 import xaero.map.MapProcessor;
 import xaero.map.MapWriter;
 import xaero.map.WorldMapSession;
@@ -33,15 +35,6 @@ import static gjum.minecraft.mapsync.common.Utils.getBiomeRegistry;
 import static gjum.minecraft.mapsync.common.Utils.mc;
 
 public class XaerosWorldMapHelperReal {
-    public static Field chunkCleanField;
-
-    static {
-        try {
-            chunkCleanField = LevelChunk.class.getDeclaredField("xaero_wm_chunkClean");
-        } catch (SecurityException | NoSuchFieldException var1) {
-            throw new RuntimeException(var1);
-        }
-    }
 
 	static boolean isMapping() {
         try {
@@ -108,53 +101,53 @@ public class XaerosWorldMapHelperReal {
             int worldBottomY = mapProcessor.getWorld().getMinY();
             int worldTopY = mapProcessor.getWorld().getMaxY();
 
-            for (int x = 0; x < 16; x++) {
-                for (int z = 0; z < 16; z++) {
-                    int idx = (z << 4) | x;
-                    MapBlock currentPixel = mapTile.getBlock(x, z);
-                    if (currentPixel == null) { currentPixel = new MapBlock(); }
+            synchronized(mapProcessor.renderThreadPauseSync) {
+                for (int x = 0; x < 16; x++) {
+                    for (int z = 0; z < 16; z++) {
+                        int idx = (z << 4) | x;
 
-                    BlockColumn col = columns[idx];
-                    BlockState state = col.layers().getLast().state();
+                        MapBlock currentPixel = mapTile.isLoaded() ? mapTile.getBlock(x, z) : null;
 
-                    BlockState topState   = state;
-                    int height            = col.layers().getLast().y();
-                    int topHeight         = worldTopY;
-                    var biomeKey          = getBiomeRegistry().getResourceKey(col.biome()).orElse(null);
-                    byte light            = (byte)state.getLightBlock();
-                    boolean glowing       = state.getLightEmission() > 0;
-                    boolean cave          = mapProcessor.getCurrentCaveLayer() == height;
+                        MapBlock loadingPixel = new MapBlock();
 
-                    currentPixel.prepareForWriting(worldBottomY);
-                    currentPixel.write(topState, height, topHeight, biomeKey, light, glowing, cave);
-                    mapTile.setBlock(x, z, currentPixel);
+                        BlockColumn col = columns[idx];
 
-                    // This runs write again on currentPixel =>
-                    // but renders biomes and transparent blocks
-                    mapWriter.loadPixel(
-                        mc.level,
-                        mapProcessor.getWorldBlockRegistry(),
-                        currentPixel, // Somehow different?
-                        currentPixel,
-                        levelChunk,
-                        x,
-                        z,
-                        worldTopY,
-                        worldBottomY, // Bottom non-air block
-                        false,
-                        false,
-                        col.layers().getLast().y(),
-                        mapTile.wasWrittenOnce(),
-                        mapProcessor.getMapWorld().isIgnoreHeightmaps(),
-                        getBiomeRegistry(),
-                        false,
-                        worldBottomY,
-                        new BlockPos.MutableBlockPos()
-                    );
+                        ResourceKey<@NotNull Biome> biomeKey = getBiomeRegistry().getResourceKey(col.biome()).orElse(null);
 
+                        // TODO
+                        boolean cave = false;
+                        boolean fullCave = false;
+                        boolean flowers = false; // From private 'Xaero's lib fabric'
+
+                        mapWriter.loadPixel(
+                            mc.level,
+                            mapProcessor.getWorldBlockRegistry(),
+                            loadingPixel,
+                            currentPixel,
+                            levelChunk,
+                            x,
+                            z,
+                            worldTopY,
+                            worldBottomY, // Bottom non-air block
+                            cave,
+                            fullCave,
+                            col.layers().getLast().y(),
+                            mapTile.wasWrittenOnce(),
+                            mapProcessor.getMapWorld().isIgnoreHeightmaps(),
+                            getBiomeRegistry(),
+                            flowers,
+                            worldBottomY,
+                            new BlockPos.MutableBlockPos()
+                        );
+
+                        loadingPixel.setBiome(biomeKey);
+
+                        mapTile.setBlock(x, z, loadingPixel);
+                    }
                 }
-            }
 
+            }
+            
             mapTile.setLoaded(true);
             mapTile.setWorldInterpretationVersion(MapTile.CURRENT_WORLD_INTERPRETATION_VERSION);
             // If cave info available

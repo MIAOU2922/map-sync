@@ -58,7 +58,7 @@ public class DimensionChunkMeta {
 		writeRegionTimestampsFile(regionPos, regionTimestamps);
 	}
 
-	// Only call this to clear memory-cache
+	// Only call this to clear memory and file-cache
 	public synchronized void PurgeRegionTimeStamps() {
 		regionsTimestamps.clear();
 		try {

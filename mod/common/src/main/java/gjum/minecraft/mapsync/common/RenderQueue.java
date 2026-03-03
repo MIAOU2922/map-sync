@@ -3,6 +3,7 @@ package gjum.minecraft.mapsync.common;
 import gjum.minecraft.mapsync.common.data.ChunkTile;
 import gjum.minecraft.mapsync.common.integration.JourneyMapHelper;
 import gjum.minecraft.mapsync.common.integration.VoxelMapHelper;
+import gjum.minecraft.mapsync.common.integration.XaerosWorldMapHelper;
 import net.minecraft.client.Minecraft;
 import org.jetbrains.annotations.NotNull;
 
@@ -57,6 +58,7 @@ public class RenderQueue {
 
 				if (!JourneyMapHelper.isJourneyMapNotAvailable && !JourneyMapHelper.isMapping()
 						|| !VoxelMapHelper.isVoxelMapNotAvailable && !VoxelMapHelper.isMapping()
+                        || !XaerosWorldMapHelper.isXaerosWorldMapNotAvailable && !XaerosWorldMapHelper.isMapping()
 				) {
 					debugLog("render is waiting til map mod is ready");
 					Thread.sleep(1000);
@@ -78,10 +80,11 @@ public class RenderQueue {
 				} else {
 					boolean voxelRendered = VoxelMapHelper.updateWithChunkTile(chunkTile);
 					boolean renderedJM = JourneyMapHelper.updateWithChunkTile(chunkTile);
+                    boolean xaeroRendered = XaerosWorldMapHelper.updateWithChunkTile(chunkTile);
 
-					debugLog("rendered? " + (voxelRendered||renderedJM) + " " + chunkTile.chunkPos() + " queue=" + queue.size());
+					debugLog("rendered? " + (voxelRendered||renderedJM|| xaeroRendered) + " " + chunkTile.chunkPos() + " queue=" + queue.size());
 
-					if (renderedJM || voxelRendered) {
+					if (renderedJM || voxelRendered || xaeroRendered) {
 						dimensionState.setChunkTimestamp(chunkTile.chunkPos(), chunkTile.timestamp());
 					} // otherwise, update this chunk again when server sends it again
 				}

@@ -17,6 +17,8 @@ dependencies {
     modCompileOnly("maven.modrinth:voxelmap-updated:tRdGJKGE")
     // https://modrinth.com/mod/journeymap/version/1.21.11-6.0.0-beta.56+fabric
     modCompileOnly("maven.modrinth:journeymap:OSpjUIEM")
+    // https://modrinth.com/mod/xaeros-world-map/version/fabric-1.21.11-1.40.11
+    modCompileOnly("maven.modrinth:xaeros-world-map:CkZVhVE0")
 }
 
 tasks {

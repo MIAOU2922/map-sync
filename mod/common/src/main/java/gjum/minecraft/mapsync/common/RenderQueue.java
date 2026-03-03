@@ -63,7 +63,7 @@ public class RenderQueue {
 					debugLog("render is waiting til map mod is ready");
 					Thread.sleep(1000);
 					continue;
-				} else { debugLog("map mod is ready"); }
+				}
 
 				var chunkTile = queue.poll();
 				if (chunkTile == null) return;

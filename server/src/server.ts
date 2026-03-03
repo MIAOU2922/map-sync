@@ -8,6 +8,7 @@ import { BufWriter } from "./protocol/BufWriter";
 import { EncryptionResponsePacket } from "./protocol/EncryptionResponsePacket";
 import { HandshakePacket } from "./protocol/HandshakePacket";
 import { SUPPORTED_VERSIONS } from "./constants";
+import * as metadata from "./metadata";
 
 const { PORT = "12312", HOST = "127.0.0.1" } = process.env;
 
@@ -331,7 +332,7 @@ async function fetchHasJoined(args: {
     const { username, shaHex, clientIp } = args;
 
     // if auth is disabled, return a "usable" item
-    if ("DISABLE_AUTH" in process.env)
+    if (!metadata.getConfig().auth)
         return { name: username, uuid: `AUTH-DISABLED-${username}` };
 
     let url = `https://sessionserver.mojang.com/session/minecraft/hasJoined?username=${username}&serverId=${shaHex}`;

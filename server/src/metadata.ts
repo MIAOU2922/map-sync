@@ -79,12 +79,14 @@ const CONFIG_SCHEMA = z.object({
     port: z.coerce.number().positive().max(65535).default(12312),
     gameAddress: z.string(),
     whitelist: z.boolean().default(true),
+    auth: z.boolean().default(true),
 });
 export type Config = z.infer<typeof CONFIG_SCHEMA>;
 export function getConfig(): Config {
     return parseConfigFile(CONFIG_FILE, CONFIG_SCHEMA.parse, () => ({
         gameAddress: "localhost:25565",
         whitelist: true,
+        auth: true,
     }));
 }
 

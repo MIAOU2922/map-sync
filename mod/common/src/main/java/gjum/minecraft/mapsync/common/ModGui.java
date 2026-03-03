@@ -27,6 +27,7 @@ public class ModGui extends Screen {
 
 	EditBox syncServerAddressField;
 	Button syncServerConnectBtn;
+	Button syncServerDisconnectBtn;
 	Button syncServerPurgeBtn;
 
 	public ModGui(Screen parentScreen) {
@@ -43,8 +44,6 @@ public class ModGui extends Screen {
 	@Override
 	protected void init() {
 		try {
-			MapSyncMod.logger.info("ModGui.init() called; width={}, height={}", width, height);
-
 			left = width / 2 - innerWidth / 2;
 			right = width / 2 + innerWidth / 2;
 			top = height / 3;
@@ -80,6 +79,12 @@ public class ModGui extends Screen {
 				);
 
 				addRenderableWidget(
+					syncServerDisconnectBtn = Button.builder(Component.literal("Disconnect"), this::disconnectClicked)
+					.bounds(right - 100, syncServerAddressField.getY() + 25, 100, 20)
+					.build()
+				);
+
+				addRenderableWidget(
 					syncServerPurgeBtn = Button.builder(Component.literal("Purge"), this::purgeClicked)
 						.bounds(width - 60, top + 40, 60, 20)
 						.bounds(10, height - 30, 60, 20)
@@ -99,9 +104,17 @@ public class ModGui extends Screen {
 			getMod().shutDownSyncClients();
 			getMod().getSyncClients();
 			btn.active = false;
+			syncServerDisconnectBtn.active = true;
 		} catch (Throwable e) {
 			e.printStackTrace();
 		}
+	}
+
+	// TODO: not working
+	public void disconnectClicked(Button btn) {
+		if (syncServerAddressField == null) return;
+		getMod().shutDownSyncClients();
+		btn.active = false;
 	}
 
 	public void purgeClicked(Button btn) {
@@ -122,14 +135,12 @@ public class ModGui extends Screen {
 
 			guiGraphics.drawCenteredString(font, title, centerX, top, 0xFFFFFFFF);
 			syncServerAddressField.render(guiGraphics, i, j, f);
-			syncServerConnectBtn.render(guiGraphics, j, j, i);
-			syncServerPurgeBtn.render(guiGraphics, j, j, i);
 
 			var dimensionState = getMod().getDimensionState();
 			if (dimensionState != null) {
 				String counterText = String.format(
 						"In dimension %s, received %d chunks, rendered %d, rendering %d",
-						dimensionState.dimension.registry(),
+						dimensionState.dimension.identifier(),
 						dimensionState.getNumChunksReceived(),
 						dimensionState.getNumChunksRendered(),
 						dimensionState.getRenderQueueSize()
@@ -137,14 +148,12 @@ public class ModGui extends Screen {
 				guiGraphics.drawCenteredString(font, counterText, centerX, syncServerAddressField.getY() - 20, 0xFF888888);
 			}
 
-			int numConnected = 0;
-			int msgY = syncServerAddressField.getY() - 40;
+			int msgY = syncServerAddressField.getY() + 25;
 			var syncClients = getMod().getSyncClients();
 			for (var client : syncClients) {
 				int statusColor;
 				String statusText;
 				if (client.isEncrypted()) {
-					numConnected++;
 					statusColor = 0xFF008800;
 					statusText = "Connected";
 				} else if (client.getError() != null) {

@@ -1,6 +1,6 @@
 export const SUPPORTED_VERSIONS = new Set([
-    "2.0.1-1.21.11+fabric",
-    // "2.0.1-1.21.11+forge",
+    "2.1.0-1.21.11+fabric",
+    // "2.1.0-1.21.11+forge",
 ]);
 
 // SHA1 produces 160-bit (20-byte) hashes

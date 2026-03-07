@@ -4,15 +4,9 @@
 
 Supports `Journeymap`, `Voxelmap` and `Xaero's World Map` (+minimap).
 
-> _This is a fork of [Gjum](https://github.com/Gjum)'s original [Map-Sync](https://github.com/CivPlatform/map-sync) mod_
+## [Download](https://modrinth.com/mod/mapsync/versions)
 
-### Disclaimer
-I am new to mod development, so some things may be imperfect & not the most secure. I started this as a way to learn and to hopefully bring the mod to a state in which my friends & I can use it on our server.
-
-###### In case you notice any **Issues**, open a ticket :)
-
-## [Download](https://github.com/Sheepy-9/map-sync/releases)
-On the Releases page
+[Join the Discord for announcements, discussion, and support.](https://discord.gg/khMPvWjnKt)
 
 ## Usage
 

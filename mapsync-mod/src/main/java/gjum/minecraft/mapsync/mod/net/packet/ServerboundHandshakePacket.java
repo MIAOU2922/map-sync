@@ -1,7 +1,7 @@
 package gjum.minecraft.mapsync.mod.net.packet;
 
 import gjum.minecraft.mapsync.mod.net.Packet;
-import io.netty.buffer.ByteBuf;
+import gjum.minecraft.mapsync.mod.net.buffers.BufferWriter;
 import org.jetbrains.annotations.NotNull;
 
 /**
@@ -14,21 +14,21 @@ public class ServerboundHandshakePacket implements Packet {
 	public final @NotNull String modVersion;
 	public final @NotNull String username;
 	public final @NotNull String gameAddress;
-	public final @NotNull String world;
+	public final @NotNull String dimension;
 
-	public ServerboundHandshakePacket(@NotNull String modVersion, @NotNull String username, @NotNull String gameAddress, @NotNull String world) {
+	public ServerboundHandshakePacket(@NotNull String modVersion, @NotNull String username, @NotNull String gameAddress, @NotNull String dimension) {
 		this.modVersion = modVersion;
 		this.username = username;
 		this.gameAddress = gameAddress;
-		this.world = world;
+		this.dimension = dimension;
 	}
 
 	@Override
-	public void write(@NotNull ByteBuf out) {
-		Packet.writeUtf8String(out, modVersion);
-		Packet.writeUtf8String(out, username);
-		Packet.writeUtf8String(out, gameAddress);
-		Packet.writeUtf8String(out, world);
+	public void write(@NotNull BufferWriter writer) throws Exception {
+		writer.writeString(modVersion);
+		writer.writeString(username);
+		writer.writeString(gameAddress);
+		writer.writeString(dimension);
 	}
 
 	@Override

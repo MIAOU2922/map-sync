@@ -1,22 +1,32 @@
 import * as kysely from "kysely";
 import sqlite from "better-sqlite3";
 import { DATA_FOLDER } from "./metadata";
-import { type Pos2D } from "./model";
+import {
+    asInt16,
+    asInt32,
+    asInt64,
+    asUnt16,
+    int16,
+    int32,
+    int64,
+    unt16,
+} from "./deps/ints";
+import { CatchupChunk, CatchupRegion, StoredChunk } from "./model";
 
 let database: kysely.Kysely<Database> | null = null;
 
 export interface Database {
     chunk_data: {
         hash: Buffer;
-        version: number;
+        version: bigint;
         data: Buffer;
     };
     player_chunk: {
         world: string;
-        chunk_x: number;
-        chunk_z: number;
+        chunk_x: bigint;
+        chunk_z: bigint;
         uuid: string;
-        ts: number;
+        ts: bigint;
         hash: Buffer;
     };
 }
@@ -25,12 +35,15 @@ export function get() {
     if (!database) {
         database = new kysely.Kysely<Database>({
             dialect: new kysely.SqliteDialect({
-                database: async () =>
-                    sqlite(
+                database: async () => {
+                    const conn = sqlite(
                         process.env["SQLITE_PATH"] ??
                             `${DATA_FOLDER}/db.sqlite`,
                         {},
-                    ),
+                    );
+                    conn.defaultSafeIntegers(true);
+                    return conn;
+                },
             }),
         });
     }
@@ -74,17 +87,19 @@ export async function setup() {
  * Converts the entire database of player chunks into regions, with each region
  * having the highest (aka newest) timestamp.
  */
-export function getRegionTimestamps(dimension: string) {
+export async function getRegionTimestamps(
+    dimension: string,
+): Promise<CatchupRegion[]> {
     // computing region coordinates in SQL requires truncating, not rounding
     return get()
         .selectFrom("player_chunk")
         .select([
             (eb) =>
-                kysely.sql<number>`floor(${eb.ref("chunk_x")} / 32.0)`.as(
+                kysely.sql<bigint>`floor(${eb.ref("chunk_x")} / 32.0)`.as(
                     "regionX",
                 ),
             (eb) =>
-                kysely.sql<number>`floor(${eb.ref("chunk_z")} / 32.0)`.as(
+                kysely.sql<bigint>`floor(${eb.ref("chunk_z")} / 32.0)`.as(
                     "regionZ",
                 ),
             (eb) => eb.fn.max("ts").as("timestamp"),
@@ -92,40 +107,50 @@ export function getRegionTimestamps(dimension: string) {
         .where("world", "=", dimension)
         .groupBy(["regionX", "regionZ"])
         .orderBy("regionX", "desc")
-        .execute();
+        .execute()
+        .then(async (regions) =>
+            regions.map((region) => ({
+                regionX: asInt16(region.regionX),
+                regionZ: asInt16(region.regionZ),
+                timestamp: asInt64(region.timestamp),
+            })),
+        );
 }
 
 /**
  * Converts an array of region coords into an array of timestamped chunk coords.
  */
-export async function getChunkTimestamps(dimension: string, regions: Pos2D[]) {
+export async function getChunkTimestamps(
+    dimension: string,
+    regionX: int16,
+    regionZ: int16,
+): Promise<CatchupChunk[]> {
+    const minChunkX = regionX << 5n,
+        maxChunkX = minChunkX + 32n;
+    const minChunkZ = regionZ << 5n,
+        maxChunkZ = minChunkZ + 32n;
     return get()
-        .with("regions", (db) =>
-            db
-                .selectFrom("player_chunk")
-                .select([
-                    (eb) =>
-                        kysely.sql<string>`(cast(floor(${eb.ref(
-                            "chunk_x",
-                        )} / 32.0) as int) || '_' || cast(floor(${eb.ref(
-                            "chunk_z",
-                        )} / 32.0) as int))`.as("region"),
-                    "chunk_x as x",
-                    "chunk_z as z",
-                    (eb) => eb.fn.max("ts").as("timestamp"),
-                ])
-                .where("world", "=", dimension)
-                .groupBy(["x", "z"]),
-        )
-        .selectFrom("regions")
-        .select(["x as chunkX", "z as chunkZ", "timestamp"])
-        .where(
-            "region",
-            "in",
-            regions.map((region) => region.x + "_" + region.z),
-        )
-        .orderBy("timestamp", "desc")
-        .execute();
+        .selectFrom("player_chunk")
+        .select([
+            "chunk_x as chunkX",
+            "chunk_z as chunkZ",
+            (eb) => eb.fn.max("ts").as("timestamp"),
+        ])
+        .where("world", "=", dimension)
+        .where("chunk_x", ">=", minChunkX)
+        .where("chunk_x", "<", maxChunkX)
+        .where("chunk_z", ">=", minChunkZ)
+        .where("chunk_z", "<", maxChunkZ)
+        .groupBy(["chunk_x", "chunk_z"])
+        .orderBy("ts", "desc")
+        .execute()
+        .then(async (chunks) =>
+            chunks.map((chunk) => ({
+                chunkX: asInt32(chunk.chunkX),
+                chunkZ: asInt32(chunk.chunkZ),
+                timestamp: asInt64(chunk.timestamp),
+            })),
+        );
 }
 
 /**
@@ -136,9 +161,9 @@ export async function getChunkTimestamps(dimension: string, regions: Pos2D[]) {
  */
 export async function getChunkData(
     dimension: string,
-    chunkX: number,
-    chunkZ: number,
-) {
+    chunkX: int32,
+    chunkZ: int32,
+): Promise<StoredChunk | null> {
     return get()
         .selectFrom("player_chunk")
         .innerJoin("chunk_data", "chunk_data.hash", "player_chunk.hash")
@@ -153,7 +178,17 @@ export async function getChunkData(
         .where("player_chunk.chunk_z", "=", chunkZ)
         .orderBy("player_chunk.ts", "desc")
         .limit(1)
-        .executeTakeFirst();
+        .executeTakeFirst()
+        .then(async (chunk) =>
+            chunk
+                ? {
+                      hash: chunk.hash,
+                      version: asUnt16(chunk.version),
+                      timestamp: asInt64(chunk.ts),
+                      data: chunk.data,
+                  }
+                : null,
+        );
 }
 
 /**
@@ -161,11 +196,11 @@ export async function getChunkData(
  */
 export async function storeChunkData(
     dimension: string,
-    chunkX: number,
-    chunkZ: number,
+    chunkX: int32,
+    chunkZ: int32,
     uuid: string,
-    timestamp: number,
-    version: number,
+    timestamp: int64,
+    version: unt16,
     hash: Buffer,
     data: Buffer,
 ) {
@@ -184,36 +219,5 @@ export async function storeChunkData(
             ts: timestamp,
             hash,
         })
-        .execute();
-}
-
-/**
- * Gets all the [latest] chunks within a region.
- */
-export async function getRegionChunks(
-    dimension: string,
-    regionX: number,
-    regionZ: number,
-) {
-    const minChunkX = regionX << 4,
-        maxChunkX = minChunkX + 16;
-    const minChunkZ = regionZ << 4,
-        maxChunkZ = minChunkZ + 16;
-    return get()
-        .selectFrom("player_chunk")
-        .innerJoin("chunk_data", "chunk_data.hash", "player_chunk.hash")
-        .select([
-            "player_chunk.chunk_x as chunk_x",
-            "player_chunk.chunk_z as chunk_z",
-            (eb) => eb.fn.max("player_chunk.ts").as("timestamp"),
-            "chunk_data.version as version",
-            "chunk_data.data as data",
-        ])
-        .where("player_chunk.world", "=", dimension)
-        .where("player_chunk.chunk_x", ">=", minChunkX)
-        .where("player_chunk.chunk_x", "<", maxChunkX)
-        .where("player_chunk.chunk_z", ">=", minChunkZ)
-        .where("player_chunk.chunk_z", "<", maxChunkZ)
-        .orderBy("player_chunk.ts", "desc")
         .execute();
 }

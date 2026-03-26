@@ -2,7 +2,7 @@ package gjum.minecraft.mapsync.mod.net.packet;
 
 import gjum.minecraft.mapsync.mod.data.RegionTimestamp;
 import gjum.minecraft.mapsync.mod.net.Packet;
-import io.netty.buffer.ByteBuf;
+import gjum.minecraft.mapsync.mod.net.buffers.BufferReader;
 
 /**
  * This is the packet for the first-stage of the synchronisation process. It's
@@ -14,35 +14,29 @@ public class ClientboundRegionTimestampsPacket implements Packet {
 
 	private final String dimension;
 
-	private final RegionTimestamp[] timestamps;
+	private final RegionTimestamp timestamp;
 
-	public ClientboundRegionTimestampsPacket(String dimension, RegionTimestamp[] timestamps) {
+	public ClientboundRegionTimestampsPacket(String dimension, RegionTimestamp timestamp) {
 		this.dimension = dimension;
-		this.timestamps = timestamps;
+		this.timestamp = timestamp;
 	}
 
 	public String getDimension() {
 		return dimension;
 	}
 
-	public RegionTimestamp[] getTimestamps() {
-		return timestamps;
+	public RegionTimestamp getTimestamp() {
+		return timestamp;
 	}
 
-	public static Packet read(ByteBuf buf) {
-		String dimension = Packet.readUtf8String(buf);
-
-		short totalRegions = buf.readShort();
-		RegionTimestamp[] timestamps = new RegionTimestamp[totalRegions];
-		// row = x
-		for (short i = 0; i < totalRegions; i++) {
-			short regionX = buf.readShort();
-			short regionZ = buf.readShort();
-
-			long timestamp = buf.readLong();
-			timestamps[i] = new RegionTimestamp(regionX, regionZ, timestamp);
-		}
-
-		return new ClientboundRegionTimestampsPacket(dimension, timestamps);
+	public static Packet read(BufferReader reader) throws Exception {
+		return new ClientboundRegionTimestampsPacket(
+			reader.readString(),
+			new RegionTimestamp(
+				(short) reader.readInt16(),
+				(short) reader.readInt16(),
+				reader.readInt64()
+			)
+		);
 	}
 }

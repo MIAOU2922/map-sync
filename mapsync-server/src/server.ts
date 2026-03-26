@@ -1,14 +1,19 @@
 import crypto from "crypto";
 import net from "net";
 import { Main } from "./main";
-import type { ClientPacket, ServerPacket } from "./protocol";
-import { decodePacket, encodePacket } from "./protocol";
-import { BufReader } from "./protocol/BufReader";
-import { BufWriter } from "./protocol/BufWriter";
-import { EncryptionResponsePacket } from "./protocol/EncryptionResponsePacket";
-import { HandshakePacket } from "./protocol/HandshakePacket";
+import {
+    decodePacket,
+    encodePacket,
+    type ServerboundPacket,
+    type ClientboundPacket,
+    ServerboundHandshakePacket,
+    ServerboundEncryptionResponsePacket,
+    ClientboundEncryptionRequestPacket,
+} from "./protocol";
+import { BufferReader, BufferWriter } from "./protocol/buffers";
 import { SUPPORTED_VERSIONS } from "./constants";
 import * as metadata from "./metadata";
+import { asUnt31 } from "./deps/ints";
 
 const { PORT = "12312", HOST = "127.0.0.1" } = process.env;
 
@@ -66,7 +71,7 @@ export class TcpClient {
     gameAddress: string | undefined;
     uuid: string | undefined;
     mcName: string | undefined;
-    world: string | undefined;
+    dimension: string | undefined;
 
     /** prevent Out of Memory when client sends a large packet */
     maxFrameSize = 2 ** 21;
@@ -109,22 +114,20 @@ export class TcpClient {
 
                     // prevent Out of Memory
                     if (frameSize > this.maxFrameSize) {
-                        return this.kick(
-                            "Frame too large: " +
-                                frameSize +
-                                " have " +
-                                accBuf.length,
+                        this.kick(
+                            `Frame's length [${frameSize}] is too large, max is [${this.maxFrameSize}]!`,
                         );
+                        return;
                     }
 
                     if (accBuf.length < 4 + frameSize) return; // wait for more data
 
-                    const frameReader = new BufReader(accBuf);
-                    frameReader.readUInt32(); // skip frame size
-                    let pktBuf = frameReader.readBufLen(frameSize);
+                    const frameReader = new BufferReader(accBuf);
+                    frameReader.readUnt31(); // skip frame size
+                    let pktBuf = frameReader.readBytesOfLength(frameSize);
                     accBuf = frameReader.readRemainder();
 
-                    const reader = new BufReader(pktBuf);
+                    const reader = new BufferReader(pktBuf);
 
                     try {
                         const packet = decodePacket(reader);
@@ -163,18 +166,19 @@ export class TcpClient {
         });
     }
 
-    private async handlePacketReceived(pkt: ClientPacket) {
+    private async handlePacketReceived(pkt: ServerboundPacket) {
+        this.debug(`Received ${pkt.name}:`, pkt);
         if (!this.uuid) {
-            // not authenticated yet
-            switch (pkt.type) {
-                case "Handshake":
+            switch (true) {
+                case pkt instanceof ServerboundHandshakePacket:
                     return await this.handleHandshakePacket(pkt);
-                case "EncryptionResponse":
+                case pkt instanceof ServerboundEncryptionResponsePacket:
                     return await this.handleEncryptionResponsePacket(pkt);
+                default:
+                    throw new Error(
+                        `Packet ${pkt.name} from unauth'd client ${this.id}`,
+                    );
             }
-            throw new Error(
-                `Packet ${pkt.type} from unauth'd client ${this.id}`,
-            );
         } else {
             return await this.handler.handleClientPacketReceived(this, pkt);
         }
@@ -185,16 +189,15 @@ export class TcpClient {
         this.socket.destroy();
     }
 
-    async send(pkt: ServerPacket) {
+    async send(pkt: ClientboundPacket) {
         if (!this.cryptoPromise) {
-            this.debug("Not encrypted, dropping packet", pkt.type);
+            this.debug("Not encrypted, dropping packet", pkt);
             return;
         }
         if (!this.uuid) {
-            this.debug("Not authenticated, dropping packet", pkt.type);
+            this.debug("Not authenticated, dropping packet", pkt);
             return;
         }
-        this.debug(this.mcName + " -> " + pkt.type);
         await this.sendInternal(pkt, true);
     }
 
@@ -210,27 +213,32 @@ export class TcpClient {
      * - If encryption is enabled, waits for the handshake to complete and encrypts the buffer.
      * - Drops the packet if the socket is not writable.
      */
-    private async sendInternal(pkt: ServerPacket, doCrypto = false) {
+    private async sendInternal(pkt: ClientboundPacket, doCrypto = false) {
         if (!this.socket.writable)
-            return this.debug("Socket closed, dropping", pkt.type);
+            return this.debug("Socket closed, dropping", pkt);
         if (doCrypto && !this.cryptoPromise)
             throw new Error(`Can't encrypt: handshake not finished`);
-
-        const writer = new BufWriter(); // TODO size hint
-        writer.writeUInt32(0); // set later, but reserve space in buffer
-        encodePacket(pkt, writer);
-        let buf: Buffer = writer.getBuffer();
-        buf.writeUInt32BE(buf.length - 4, 0); // write into space reserved above
-
+        this.debug(`Sending ${pkt.name}:`, pkt);
+        let buf: Buffer;
+        {
+            const packetWriter = new BufferWriter();
+            encodePacket(pkt, packetWriter);
+            buf = packetWriter.getBuffer();
+        }
+        {
+            const frameWriter = new BufferWriter(asUnt31(4 + buf.length));
+            frameWriter.writeUnt31(buf.length);
+            frameWriter.writeBytes(buf);
+            buf = frameWriter.getBuffer();
+        }
         if (doCrypto) {
             const { cipher } = await this.cryptoPromise!;
             buf = cipher!.update(buf);
         }
-
         this.socket.write(buf);
     }
 
-    private async handleHandshakePacket(packet: HandshakePacket) {
+    private async handleHandshakePacket(packet: ServerboundHandshakePacket) {
         if (this.cryptoPromise) throw new Error(`Already authenticated`);
         if (this.verifyToken) throw new Error(`Encryption already started`);
 
@@ -245,18 +253,19 @@ export class TcpClient {
 
         this.gameAddress = packet.gameAddress;
         this.claimedMojangName = packet.mojangName;
-        this.world = packet.world;
+        this.dimension = packet.dimension;
         this.verifyToken = crypto.randomBytes(4);
 
-        await this.sendInternal({
-            type: "EncryptionRequest",
-            publicKey: this.server.publicKeyBuffer,
-            verifyToken: this.verifyToken,
-        });
+        await this.sendInternal(
+            new ClientboundEncryptionRequestPacket(
+                this.server.publicKeyBuffer,
+                this.verifyToken,
+            ),
+        );
     }
 
     private async handleEncryptionResponsePacket(
-        pkt: EncryptionResponsePacket,
+        pkt: ServerboundEncryptionResponsePacket,
     ) {
         if (this.cryptoPromise) throw new Error(`Already authenticated`);
         if (!this.claimedMojangName)

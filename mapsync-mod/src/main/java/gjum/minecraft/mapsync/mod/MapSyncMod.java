@@ -13,13 +13,17 @@ import gjum.minecraft.mapsync.mod.net.packet.ClientboundChunkTimestampsResponseP
 import gjum.minecraft.mapsync.mod.net.packet.ClientboundRegionTimestampsPacket;
 import gjum.minecraft.mapsync.mod.net.packet.ServerboundCatchupRequestPacket;
 import gjum.minecraft.mapsync.mod.net.packet.ServerboundChunkTimestampsRequestPacket;
+import it.unimi.dsi.fastutil.objects.Object2LongArrayMap;
+import it.unimi.dsi.fastutil.objects.Object2LongMap;
 import java.io.IOException;
 import java.io.InputStream;
 import java.nio.charset.StandardCharsets;
 import java.util.ArrayList;
 import java.util.Collections;
 import java.util.HashMap;
+import java.util.IdentityHashMap;
 import java.util.List;
+import java.util.Map;
 import java.util.stream.Collectors;
 import net.fabricmc.api.ClientModInitializer;
 import net.fabricmc.fabric.api.client.event.lifecycle.v1.ClientTickEvents;
@@ -31,6 +35,7 @@ import net.minecraft.client.multiplayer.ServerData;
 import net.minecraft.network.protocol.game.ClientboundLoginPacket;
 import net.minecraft.network.protocol.game.ClientboundRespawnPacket;
 import net.minecraft.resources.Identifier;
+import net.minecraft.world.level.ChunkPos;
 import org.apache.logging.log4j.LogManager;
 import org.apache.logging.log4j.Logger;
 import org.jetbrains.annotations.NotNull;
@@ -272,23 +277,21 @@ public final class MapSyncMod implements ClientModInitializer {
 		if (!dimension.dimension.identifier().toString().equals(packet.getDimension())) {
 			return;
 		}
-		var outdatedRegions = new ArrayList<RegionPos>();
-		for (var regionTs : packet.getTimestamps()) {
-			var regionPos = new RegionPos(regionTs.x(), regionTs.z());
-			long oldestChunkTs = dimension.getOldestChunkTsInRegion(regionPos);
-			boolean requiresUpdate = regionTs.timestamp() > oldestChunkTs;
 
-			debugLog("region " + regionPos
-					+ (requiresUpdate ? " requires update." : " is up to date.")
-					+ " oldest client chunk ts: " + oldestChunkTs
-					+ ", newest server chunk ts: " + regionTs.timestamp());
+		var regionTs = packet.getTimestamp();
 
-			if (requiresUpdate) {
-				outdatedRegions.add(regionPos);
-			}
+		var regionPos = new RegionPos(regionTs.x(), regionTs.z());
+		long oldestChunkTs = dimension.getOldestChunkTsInRegion(regionPos);
+		boolean requiresUpdate = regionTs.timestamp() > oldestChunkTs;
+
+		debugLog("region " + regionPos
+				+ (requiresUpdate ? " requires update." : " is up to date.")
+				+ " oldest client chunk ts: " + oldestChunkTs
+				+ ", newest server chunk ts: " + regionTs.timestamp());
+
+		if (requiresUpdate) {
+			client.send(new ServerboundChunkTimestampsRequestPacket(packet.getDimension(), regionPos));
 		}
-
-		client.send(new ServerboundChunkTimestampsRequestPacket(packet.getDimension(), outdatedRegions));
 	}
 
 	public void handleSharedChunk(ChunkTile chunkTile) {
@@ -305,25 +308,44 @@ public final class MapSyncMod implements ClientModInitializer {
 	public void handleCatchupData(ClientboundChunkTimestampsResponsePacket packet) {
 		var dimensionState = getDimensionState();
 		if (dimensionState == null) return;
-		debugLog("received catchup: " + packet.chunks.size() + " " + packet.chunks.get(0).syncClient.address);
-		dimensionState.addCatchupChunks(packet.chunks);
+		debugLog("received catchup: " + packet.chunks().size() + " " + packet.chunks().get(0).syncClient.address);
+		dimensionState.addCatchupChunks(packet.chunks());
 	}
 
-	public void requestCatchupData(List<CatchupChunk> chunks) {
+	public void requestCatchupData(
+		final @NotNull DimensionState dimensionState,
+		final List<@NotNull CatchupChunk> chunks
+	) {
 		if (chunks == null || chunks.isEmpty()) {
 			debugLog("not requesting more catchup: null/empty");
 			return;
 		}
-
-		debugLog("requesting more catchup: " + chunks.size());
-		var byServer = new HashMap<String, List<CatchupChunk>>();
-		for (CatchupChunk chunk : chunks) {
-			var list = byServer.computeIfAbsent(chunk.syncClient.address, (a) -> new ArrayList<>());
-			list.add(chunk);
+		debugLog("requesting %d more catchup chunks".formatted(
+			chunks.size()
+		));
+		final var catchupChunksBySyncServer = new IdentityHashMap<SyncClient, List<CatchupChunk>>();
+		for (final CatchupChunk chunk : chunks) {
+			catchupChunksBySyncServer
+				.computeIfAbsent(chunk.syncClient, (key) -> new ArrayList<>())
+				.add(chunk);
 		}
-		for (List<CatchupChunk> chunksForServer : byServer.values()) {
-			SyncClient client = chunksForServer.get(0).syncClient;
-			client.send(new ServerboundCatchupRequestPacket(chunksForServer));
+		for (final var byServerEntry : catchupChunksBySyncServer.entrySet()) {
+			final SyncClient syncConnection = byServerEntry.getKey();
+			final Map<RegionPos, Object2LongMap<ChunkPos>> regionChunkRequests = new HashMap<>();
+			for (final CatchupChunk catchupChunk : byServerEntry.getValue()) {
+				regionChunkRequests
+					.computeIfAbsent(RegionPos.forChunkPos(catchupChunk.chunkPos()), (regionPos) -> new Object2LongArrayMap<>())
+					.mergeLong(catchupChunk.chunkPos(), catchupChunk.timestamp(), Math::max);
+			}
+			for (final var byRegionEntry : regionChunkRequests.entrySet()) {
+				final RegionPos regionPos = byRegionEntry.getKey();
+				syncConnection.send(new ServerboundCatchupRequestPacket(
+					dimensionState.dimension.identifier(),
+					(short) regionPos.x(),
+					(short) regionPos.z(),
+					byRegionEntry.getValue()
+				));
+			}
 		}
 	}
 

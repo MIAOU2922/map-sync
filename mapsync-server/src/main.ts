@@ -1,12 +1,17 @@
+import node_utils from "node:util";
 import "./cli";
 import { setServer } from "./cli";
 import * as database from "./database";
 import * as metadata from "./metadata";
-import { ClientPacket } from "./protocol";
-import { CatchupRequestPacket } from "./protocol/CatchupRequestPacket";
-import { ChunkTilePacket } from "./protocol/ChunkTilePacket";
 import { TcpClient, TcpServer } from "./server";
-import { RegionCatchupPacket } from "./protocol/RegionCatchupPacket";
+import {
+    ChunkTilePacket,
+    ClientboundChunkTimestampsResponsePacket,
+    ClientboundRegionTimestampsPacket,
+    ServerboundCatchupRequestPacket,
+    ServerboundChunkTimestampsRequestPacket,
+    ServerboundPacket,
+} from "./protocol";
 
 let config: metadata.Config = null!;
 let main: Main = null!;
@@ -50,30 +55,37 @@ export class Main {
 
         // TODO check version, mc server, user access
 
-        const timestamps = await database.getRegionTimestamps(client.world!);
-        client.send({
-            type: "RegionTimestamps",
-            world: client.world!,
-            regions: timestamps,
-        });
+        const regions = await database.getRegionTimestamps(client.dimension!);
+        await Promise.allSettled(
+            regions.map((region) =>
+                client.send(
+                    new ClientboundRegionTimestampsPacket(
+                        client.dimension!,
+                        region.regionX,
+                        region.regionZ,
+                        region.timestamp,
+                    ),
+                ),
+            ),
+        );
     }
 
     handleClientDisconnected(client: ProtocolClient) {}
 
-    handleClientPacketReceived(client: ProtocolClient, pkt: ClientPacket) {
-        client.debug(client.mcName + " <- " + pkt.type);
-        switch (pkt.type) {
-            case "ChunkTile":
-                return this.handleChunkTilePacket(client, pkt);
-            case "CatchupRequest":
+    async handleClientPacketReceived(
+        client: ProtocolClient,
+        pkt: ServerboundPacket,
+    ) {
+        switch (true) {
+            case pkt instanceof ServerboundChunkTimestampsRequestPacket:
+                return this.handleChunkTimestampsRequest(client, pkt);
+            case pkt instanceof ServerboundCatchupRequestPacket:
                 return this.handleCatchupRequest(client, pkt);
-            case "RegionCatchup":
-                return this.handleRegionCatchupPacket(client, pkt);
+            case pkt instanceof ChunkTilePacket:
+                return this.handleChunkTilePacket(client, pkt);
             default:
                 throw new Error(
-                    `Unknown packet '${(pkt as any).type}' from client ${
-                        client.id
-                    }`,
+                    `Unknown packet [${node_utils.inspect(pkt)}] from client ${client.id}`,
                 );
         }
     }
@@ -86,14 +98,14 @@ export class Main {
 
         await database
             .storeChunkData(
-                pkt.world,
-                pkt.chunk_x,
-                pkt.chunk_z,
+                pkt.dimension,
+                pkt.chunkX,
+                pkt.chunkZ,
                 client.uuid,
-                pkt.ts,
-                pkt.data.version,
-                pkt.data.hash,
-                pkt.data.data,
+                pkt.timestamp,
+                pkt.dataVersion,
+                pkt.dataHash,
+                pkt.data,
             )
             .catch(console.error);
 
@@ -106,55 +118,63 @@ export class Main {
 
     async handleCatchupRequest(
         client: ProtocolClient,
-        pkt: CatchupRequestPacket,
+        pkt: ServerboundCatchupRequestPacket,
     ) {
         if (!client.uuid)
             throw new Error(`${client.name} is not authenticated`);
 
         for (const req of pkt.chunks) {
             let chunk = await database.getChunkData(
-                pkt.world,
+                pkt.dimension,
                 req.chunkX,
                 req.chunkZ,
             );
             if (!chunk) {
                 console.error(`${client.name} requested unavailable chunk`, {
-                    world: pkt.world,
+                    dimension: pkt.dimension,
                     ...req,
                 });
                 continue;
             }
 
-            if (chunk.ts > req.timestamp) continue; // someone sent a new chunk, which presumably got relayed to the client
-            if (chunk.ts < req.timestamp) continue; // the client already has a chunk newer than this
+            if (chunk.timestamp > req.timestamp) continue; // someone sent a new chunk, which presumably got relayed to the client
+            if (chunk.timestamp < req.timestamp) continue; // the client already has a chunk newer than this
 
-            client.send({
-                type: "ChunkTile",
-                world: pkt.world,
-                chunk_x: req.chunkX,
-                chunk_z: req.chunkZ,
-                ts: req.timestamp,
-                data: {
-                    hash: chunk.hash,
-                    data: chunk.data,
-                    version: chunk.version,
-                },
-            });
+            client.send(
+                new ChunkTilePacket(
+                    pkt.dimension,
+                    req.chunkX,
+                    req.chunkZ,
+                    req.timestamp,
+                    chunk.version,
+                    chunk.hash,
+                    chunk.data,
+                ),
+            );
         }
     }
 
-    async handleRegionCatchupPacket(
+    async handleChunkTimestampsRequest(
         client: ProtocolClient,
-        pkt: RegionCatchupPacket,
+        pkt: ServerboundChunkTimestampsRequestPacket,
     ) {
         if (!client.uuid)
             throw new Error(`${client.name} is not authenticated`);
 
         const chunks = await database.getChunkTimestamps(
-            pkt.world,
-            pkt.regions,
+            pkt.dimension,
+            pkt.regionX,
+            pkt.regionZ,
         );
-        if (chunks.length)
-            client.send({ type: "Catchup", world: pkt.world, chunks });
+        if (chunks.length) {
+            client.send(
+                new ClientboundChunkTimestampsResponsePacket(
+                    pkt.dimension,
+                    pkt.regionX,
+                    pkt.regionZ,
+                    chunks,
+                ),
+            );
+        }
     }
 }

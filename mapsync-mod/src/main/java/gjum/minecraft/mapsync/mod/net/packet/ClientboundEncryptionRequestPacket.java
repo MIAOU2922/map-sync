@@ -1,7 +1,7 @@
 package gjum.minecraft.mapsync.mod.net.packet;
 
 import gjum.minecraft.mapsync.mod.net.Packet;
-import io.netty.buffer.ByteBuf;
+import gjum.minecraft.mapsync.mod.net.buffers.BufferReader;
 import java.security.KeyFactory;
 import java.security.NoSuchAlgorithmException;
 import java.security.PublicKey;
@@ -24,15 +24,15 @@ public class ClientboundEncryptionRequestPacket implements Packet {
 		this.verifyToken = verifyToken;
 	}
 
-	public static Packet read(ByteBuf buf) {
+	public static Packet read(BufferReader reader) throws Exception {
 		return new ClientboundEncryptionRequestPacket(
-				readKey(buf),
-				Packet.readIntLengthByteArray(buf));
+				readKey(reader),
+				reader.readBytesOfLength(reader.readUnt8()));
 	}
 
-	protected static PublicKey readKey(ByteBuf in) {
+	protected static PublicKey readKey(BufferReader reader) throws Exception {
 		try {
-			byte[] encodedKey = Packet.readIntLengthByteArray(in);
+			byte[] encodedKey = reader.readBytesOfLength(reader.readUnt16());
 			X509EncodedKeySpec keySpec = new X509EncodedKeySpec(encodedKey);
 			KeyFactory keyFactory = KeyFactory.getInstance("RSA");
 			return keyFactory.generatePublic(keySpec);

@@ -6,14 +6,15 @@
     "license": "GPL-3.0-only",
     "scripts": {
         "build": "tsc",
+        "typecheck": "tsc --noEmit",
         "format": "prettier -w .",
         "test": "true",
-        "start": "node --security-revert=CVE-2023-46809 -r source-map-support/register dist/main.js",
-        "start:dev": "tsc && node --security-revert=CVE-2023-46809 --inspect -r source-map-support/register dist/main.js"
+        "start": "node -r source-map-support/register dist/main.js",
+        "start:dev": "tsc && npm run start --inspect"
     },
     "dependencies": {
         "async-mutex": "^0.4.0",
-        "better-sqlite3": "^9.5.0",
+        "better-sqlite3": "^12.8.0",
         "kysely": "^0.28.14",
         "source-map-support": "^0.5.21",
         "zod": "^3.21.4",
@@ -21,13 +22,13 @@
     },
     "devDependencies": {
         "@types/better-sqlite3": "^7.6.4",
-        "@types/node": "^18.17.4",
+        "@types/node": "^24.12.0",
         "dotenv": "^16.0.1",
         "prettier": "^3.0.1",
         "typescript": "^5.1.6"
     },
     "engines": {
-        "node": "18.x"
+        "node": "24.x"
     },
     "prettier": {
         "useTabs": false,
@@ -35,5 +36,6 @@
         "trailingComma": "all",
         "singleQuote": false,
         "semi": true
-    }
+    },
+    "packageManager": "pnpm@10.33.0+sha512.10568bb4a6afb58c9eb3630da90cc9516417abebd3fabbe6739f0ae795728da1491e9db5a544c76ad8eb7570f5c4bb3d6c637b2cb41bfdcdb47fa823c8649319"
 }

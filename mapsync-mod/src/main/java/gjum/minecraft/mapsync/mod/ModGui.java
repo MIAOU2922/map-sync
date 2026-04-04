@@ -3,6 +3,8 @@ package gjum.minecraft.mapsync.mod;
 import static gjum.minecraft.mapsync.mod.MapSyncMod.getMod;
 
 import gjum.minecraft.mapsync.mod.config.ServerConfig;
+import gjum.minecraft.mapsync.mod.net.SyncClients;
+import java.util.HashSet;
 import java.util.List;
 import net.minecraft.client.gui.GuiGraphics;
 import net.minecraft.client.gui.components.Button;
@@ -98,10 +100,9 @@ public class ModGui extends Screen {
 	public void connectClicked(Button btn) {
 		try {
 			if (syncServerAddressField == null) return;
-			var addresses = List.of(syncServerAddressField.getValue().split("[^-_.:A-Za-z0-9]+"));
+			var addresses = List.of(syncServerAddressField.getValue().split("[^-_.:A-Za-z0-9/]+"));
 			serverConfig.setSyncServerAddresses(addresses);
-			getMod().shutDownSyncClients();
-			getMod().getSyncClients();
+			SyncClients.get().orElseThrow().setAll(new HashSet<>(addresses));
 			btn.active = false;
 			syncServerDisconnectBtn.active = true;
 		} catch (Throwable e) {
@@ -112,7 +113,7 @@ public class ModGui extends Screen {
 	// TODO: not working
 	public void disconnectClicked(Button btn) {
 		if (syncServerAddressField == null) return;
-		getMod().shutDownSyncClients();
+		SyncClients.get().orElseThrow().closeAll(true);
 		btn.active = false;
 	}
 
@@ -148,21 +149,31 @@ public class ModGui extends Screen {
 			}
 
 			int msgY = syncServerAddressField.getY() + 25;
-			var syncClients = getMod().getSyncClients();
-			for (var client : syncClients) {
+			for (var client : SyncClients.get().orElseThrow()) {
 				int statusColor;
 				String statusText;
-				if (client.isEncrypted()) {
-					statusColor = 0xFF008800;
-					statusText = "Connected";
-				} else if (client.getError() != null) {
-					statusColor = 0xFFff8888;
-					statusText = client.getError();
-				} else {
-					statusColor = 0xFFffffff;
-					statusText = "Connecting...";
+
+				var connectionState = client.state();
+				switch (connectionState) {
+					case DISCONNECTED -> {
+						statusColor = 0xFFff8888;
+						statusText = "Disconnected";
+					}
+					case CONNECTED -> {
+						statusColor = 0xFF8888ff;
+						statusText = "Connected (not authed)";
+					}
+					case WELCOMED -> {
+						statusColor = 0xFF88ff88;
+						statusText = "Connected and authed";
+					}
+					default -> {
+						statusColor = 0xFFFFFF00;
+						statusText = "Unknown state: " + connectionState;
+					}
 				}
-				statusText = client.address + "  " + statusText;
+
+				statusText = client.syncAddress + "  " + statusText;
 				guiGraphics.drawString(font, statusText, left, msgY, statusColor);
 				msgY += 10;
 			}

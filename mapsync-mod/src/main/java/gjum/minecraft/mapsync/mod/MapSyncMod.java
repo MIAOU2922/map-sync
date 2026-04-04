@@ -8,31 +8,32 @@ import gjum.minecraft.mapsync.mod.config.ServerConfig;
 import gjum.minecraft.mapsync.mod.data.CatchupChunk;
 import gjum.minecraft.mapsync.mod.data.ChunkTile;
 import gjum.minecraft.mapsync.mod.data.RegionPos;
+import gjum.minecraft.mapsync.mod.net.CloseContext;
+import gjum.minecraft.mapsync.mod.net.Packet;
 import gjum.minecraft.mapsync.mod.net.SyncClient;
+import gjum.minecraft.mapsync.mod.net.SyncClients;
+import gjum.minecraft.mapsync.mod.net.UnexpectedPacketException;
+import gjum.minecraft.mapsync.mod.net.auth.AuthProcess;
+import gjum.minecraft.mapsync.mod.net.packet.ChunkTilePacket;
 import gjum.minecraft.mapsync.mod.net.packet.ClientboundChunkTimestampsResponsePacket;
+import gjum.minecraft.mapsync.mod.net.packet.ClientboundIdentityRequestPacket;
 import gjum.minecraft.mapsync.mod.net.packet.ClientboundRegionTimestampsPacket;
+import gjum.minecraft.mapsync.mod.net.packet.ClientboundWelcomePacket;
 import gjum.minecraft.mapsync.mod.net.packet.ServerboundCatchupRequestPacket;
 import gjum.minecraft.mapsync.mod.net.packet.ServerboundChunkTimestampsRequestPacket;
 import it.unimi.dsi.fastutil.objects.Object2LongArrayMap;
 import it.unimi.dsi.fastutil.objects.Object2LongMap;
-import java.io.IOException;
-import java.io.InputStream;
-import java.nio.charset.StandardCharsets;
 import java.util.ArrayList;
-import java.util.Collections;
 import java.util.HashMap;
 import java.util.IdentityHashMap;
 import java.util.List;
 import java.util.Map;
-import java.util.stream.Collectors;
 import net.fabricmc.api.ClientModInitializer;
 import net.fabricmc.fabric.api.client.event.lifecycle.v1.ClientTickEvents;
 import net.fabricmc.fabric.api.client.keybinding.v1.KeyBindingHelper;
-import net.fabricmc.loader.api.FabricLoader;
 import net.minecraft.client.KeyMapping;
 import net.minecraft.client.Minecraft;
 import net.minecraft.client.multiplayer.ServerData;
-import net.minecraft.network.protocol.game.ClientboundLoginPacket;
 import net.minecraft.network.protocol.game.ClientboundRespawnPacket;
 import net.minecraft.resources.Identifier;
 import net.minecraft.world.level.ChunkPos;
@@ -43,19 +44,6 @@ import org.jetbrains.annotations.Nullable;
 import org.lwjgl.glfw.GLFW;
 
 public final class MapSyncMod implements ClientModInitializer {
-	public static final String VERSION; static {
-		final InputStream in = MapSyncMod.class.getResourceAsStream("/mapsync.version.const");
-		if (in == null) {
-			throw new ExceptionInInitializerError(new NullPointerException("'mapsync.version.const' const is missing!"));
-		}
-		try (in) {
-			VERSION = new String(in.readAllBytes(), StandardCharsets.UTF_8).trim();
-		}
-		catch (final IOException e) {
-			throw new ExceptionInInitializerError(e);
-		}
-	}
-
 	private static final Minecraft mc = Minecraft.getInstance();
 
 	public static final Logger logger = LogManager.getLogger(MapSyncMod.class);
@@ -80,8 +68,6 @@ public final class MapSyncMod implements ClientModInitializer {
 			CATEGORY
 			//"category.map-sync"
 	);
-
-	private @NotNull List<SyncClient> syncClients = new ArrayList<>();
 
 	/**
 	 * Tracks state and render thread for current mc dimension.
@@ -115,18 +101,7 @@ public final class MapSyncMod implements ClientModInitializer {
 				e.printStackTrace();
 			}
 		});
-	}
-
-
-	/**
-	 * for example: 1.0.0+forge
-	 */
-	public String getVersion() {
-		return VERSION + "+fabric";
-	}
-
-	public boolean isDevMode() {
-		return FabricLoader.getInstance().isDevelopmentEnvironment();
+		SyncClients.initEvents();
 	}
 
 	public void handleTick(
@@ -140,8 +115,36 @@ public final class MapSyncMod implements ClientModInitializer {
 		if (dimensionState != null) dimensionState.onTick();
 	}
 
-	public void handleConnectedToServer(ClientboundLoginPacket packet) {
-		getSyncClients();
+	public void handleSyncConnection(
+		final @NotNull SyncClient client
+	) throws Exception {
+		client.authState.set(null);
+		AuthProcess.sendHandshake(
+			client,
+			this.getDimensionState()
+		);
+	}
+
+	public void handleSyncDisconnection(
+		final @NotNull SyncClient client,
+		final @NotNull CloseContext context
+	) {
+		client.authState.set(null);
+	}
+
+	/// BEWARE: This is called from whatever thread the given SyncClient websocket is using for reads.
+	public void handleSyncPacket(
+		final @NotNull SyncClient client,
+		final @NotNull Packet received
+	) throws Exception {
+		switch (received) {
+			case ChunkTilePacket(ChunkTile chunkTile) -> handleSharedChunk(client, chunkTile);
+			case ClientboundIdentityRequestPacket packet -> AuthProcess.handleIdentityRequest(client, packet);
+			case ClientboundWelcomePacket packet -> AuthProcess.handleWelcome(client, packet);
+			case ClientboundRegionTimestampsPacket packet -> handleRegionTimestamps(client, packet);
+			case ClientboundChunkTimestampsResponsePacket packet -> handleCatchupData(client, packet);
+			default -> throw new UnexpectedPacketException(received);
+		}
 	}
 
 	public void handleRespawn(ClientboundRespawnPacket packet) {
@@ -165,48 +168,6 @@ public final class MapSyncMod implements ClientModInitializer {
 			serverConfig = ServerConfig.load(gameAddress);
 		}
 		return serverConfig;
-	}
-
-	public @NotNull List<SyncClient> getSyncClients() {
-		var serverConfig = getServerConfig();
-		if (serverConfig == null) return shutDownSyncClients();
-
-		var syncServerAddresses = serverConfig.getSyncServerAddresses();
-		if (syncServerAddresses.isEmpty()) return shutDownSyncClients();
-
-		// will be filled with clients that are still wanted (address) and are still connected
-		var existingClients = new HashMap<String, SyncClient>();
-
-		for (SyncClient client : syncClients) {
-			if (client.isShutDown) continue;
-			// avoid reconnecting to same sync server, to keep shared state (expensive to resync)
-			if (!client.gameAddress.equals(serverConfig.gameAddress)) {
-				debugLog("Disconnecting sync client; different game server");
-				client.shutDown();
-			} else if (!syncServerAddresses.contains(client.address)) {
-				debugLog("Disconnecting sync client; different sync address");
-				client.shutDown();
-			} else {
-				existingClients.put(client.address, client);
-			}
-		}
-
-		syncClients = syncServerAddresses.stream().map(address -> {
-			var client = existingClients.get(address);
-			if (client == null) client = new SyncClient(address, serverConfig.gameAddress);
-			client.autoReconnect = true;
-			return client;
-		}).collect(Collectors.toList());
-
-		return syncClients;
-	}
-
-	public List<SyncClient> shutDownSyncClients() {
-		for (SyncClient client : syncClients) {
-			client.shutDown();
-		}
-		syncClients.clear();
-		return Collections.emptyList();
 	}
 
 	/**
@@ -253,7 +214,7 @@ public final class MapSyncMod implements ClientModInitializer {
 		if (RenderQueue.areAllMapModsMapping()) {
 			dimensionState.setChunkTimestamp(chunkTile.chunkPos(), chunkTile.timestamp());
 		}
-		for (SyncClient client : getSyncClients()) {
+		for (SyncClient client : SyncClients.get().orElseThrow()) {
 			client.sendChunkTile(chunkTile);
 		}
 	}
@@ -271,7 +232,8 @@ public final class MapSyncMod implements ClientModInitializer {
 		// TODO tell server our current dimension
 	}
 
-	public void handleRegionTimestamps(ClientboundRegionTimestampsPacket packet, SyncClient client) {
+	public void handleRegionTimestamps(SyncClient client, ClientboundRegionTimestampsPacket packet) {
+		client.authState.requireWelcomed();
 		DimensionState dimension = getDimensionState();
 		if (dimension == null) return;
 		if (!dimension.dimension.identifier().toString().equals(packet.dimension())) {
@@ -294,9 +256,10 @@ public final class MapSyncMod implements ClientModInitializer {
 		}
 	}
 
-	public void handleSharedChunk(ChunkTile chunkTile) {
+	public void handleSharedChunk(SyncClient client, ChunkTile chunkTile) {
+		client.authState.requireWelcomed();
 		debugLog("received shared chunk: " + chunkTile.chunkPos());
-		for (SyncClient syncClient : getSyncClients()) {
+		for (SyncClient syncClient : SyncClients.get().orElseThrow()) {
 			syncClient.setServerKnownChunkHash(chunkTile.chunkPos(), chunkTile.dataHash());
 		}
 
@@ -305,10 +268,14 @@ public final class MapSyncMod implements ClientModInitializer {
 		dimensionState.processSharedChunk(chunkTile);
 	}
 
-	public void handleCatchupData(ClientboundChunkTimestampsResponsePacket packet) {
+	public void handleCatchupData(SyncClient client, ClientboundChunkTimestampsResponsePacket packet) {
+		client.authState.requireWelcomed();
+		for (CatchupChunk chunk : packet.chunks()) {
+			chunk.syncClient = client;
+		}
 		var dimensionState = getDimensionState();
 		if (dimensionState == null) return;
-		debugLog("received catchup: " + packet.chunks().size() + " " + packet.chunks().get(0).syncClient.address);
+		debugLog("received catchup: " + packet.chunks().size() + " " + client.syncAddress);
 		dimensionState.addCatchupChunks(packet.chunks());
 	}
 

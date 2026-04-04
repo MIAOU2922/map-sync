@@ -5,8 +5,7 @@ import gjum.minecraft.mapsync.mod.data.BlockInfo;
 import gjum.minecraft.mapsync.mod.data.ChunkTile;
 import gjum.minecraft.mapsync.mod.net.buffers.BufferWriter;
 import gjum.minecraft.mapsync.mod.utils.Shortcuts;
-import io.netty.buffer.ByteBuf;
-import io.netty.buffer.Unpooled;
+import java.io.ByteArrayOutputStream;
 import java.security.MessageDigest;
 import java.util.ArrayList;
 import net.minecraft.client.Minecraft;
@@ -36,10 +35,10 @@ public class Cartography {
 
 		// TODO speedup: don't serialize twice (once here, once later when writing to network)
 		final byte[] dataHash; {
-			final ByteBuf columnsBuf = Unpooled.buffer();
-			Failable.run(() -> ChunkTile.writeColumns(columns, new BufferWriter(columnsBuf)));
+			final ByteArrayOutputStream os = new ByteArrayOutputStream();
+			Failable.run(() -> ChunkTile.writeColumns(columns, new BufferWriter(os)));
 			final MessageDigest md = Shortcuts.shaHash();
-			md.update(columnsBuf.nioBuffer());
+			md.update(os.toByteArray());
 			dataHash = md.digest();
 		}
 

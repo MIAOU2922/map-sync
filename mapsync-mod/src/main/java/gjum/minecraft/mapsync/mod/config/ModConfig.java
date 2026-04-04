@@ -3,6 +3,8 @@ package gjum.minecraft.mapsync.mod.config;
 import com.google.gson.annotations.Expose;
 import java.io.File;
 import java.nio.file.Path;
+
+import gjum.minecraft.mapsync.mod.MapSyncMod;
 import net.minecraft.client.Minecraft;
 
 public class ModConfig extends JsonConfig {
@@ -31,9 +33,6 @@ public class ModConfig extends JsonConfig {
 	}
 
 	public static ModConfig load() {
-		final String mcRoot = Minecraft.getInstance().gameDirectory.getAbsolutePath();
-		var dir = Path.of(mcRoot, "MapSync").toFile();
-		dir.mkdirs();
-		return ModConfig.load(new File(dir, "mod-config.json"), ModConfig.class);
+		return ModConfig.load(new File(MapSyncMod.getConfigDirectory(), "mod-config.json"), ModConfig.class);
 	}
 }

@@ -10,6 +10,8 @@ import java.util.ArrayList;
 import java.util.List;
 import java.util.Objects;
 import java.util.stream.Collectors;
+
+import gjum.minecraft.mapsync.mod.MapSyncMod;
 import net.minecraft.client.Minecraft;
 import org.jetbrains.annotations.NotNull;
 
@@ -35,8 +37,7 @@ public class ServerConfig extends JsonConfig {
 	}
 
 	public static ServerConfig load(String gameAddress) {
-		final String mcRoot = Minecraft.getInstance().gameDirectory.getAbsolutePath();
-		var dir = Path.of(mcRoot, "MapSync", gameAddress.replaceAll(":", "~")).toFile();
+		var dir = Path.of(MapSyncMod.getConfigDirectory().getAbsolutePath(), gameAddress.replaceAll(":", "~")).toFile();
 		dir.mkdirs();
 		var conf = load(new File(dir, "server-config.json"), ServerConfig.class);
 		conf.gameAddress = gameAddress;

@@ -12,7 +12,7 @@
         "format": "prettier -w .",
         "test": "true",
         "start": "node -r source-map-support/register dist/main.js",
-        "start:dev": "node --inspect -r source-map-support/register dist/main.js"
+        "start:dev": "tsc && node --inspect -r source-map-support/register dist/main.js"
     },
     "dependencies": {
         "async-mutex": "0.5.0",
@@ -34,7 +34,7 @@
         "bufferutil": "4.1.0"
     },
     "engines": {
-        "node": "24.x"
+        "node": "25.x"
     },
     "prettier": {
         "useTabs": false,

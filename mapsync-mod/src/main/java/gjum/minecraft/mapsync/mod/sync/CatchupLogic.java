@@ -1,7 +1,6 @@
 package gjum.minecraft.mapsync.mod.sync;
 
 import static gjum.minecraft.mapsync.mod.MapSyncMod.debugLog;
-import static gjum.minecraft.mapsync.mod.MapSyncMod.getMod;
 import static gjum.minecraft.mapsync.mod.MapSyncMod.logger;
 
 import gjum.minecraft.mapsync.mod.MapSyncMod;
@@ -72,7 +71,7 @@ public class CatchupLogic {
 			// if none get received within a second (all outdated etc.) then request more anyway
 			tsRequestMore = now + 1000;
 			var chunksToRequest = pollCatchupChunks(WATERMARK_REQUEST_MORE);
-			getMod().requestCatchupData(dimensionState, chunksToRequest);
+			MapSyncMod.requestCatchupData(dimensionState, chunksToRequest);
 		}
 	}
 

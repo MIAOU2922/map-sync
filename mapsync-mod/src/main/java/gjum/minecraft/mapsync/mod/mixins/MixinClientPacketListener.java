@@ -1,8 +1,8 @@
 package gjum.minecraft.mapsync.mod.mixins;
 
-import static gjum.minecraft.mapsync.mod.MapSyncMod.getMod;
 import static gjum.minecraft.mapsync.mod.Utils.printErrorRateLimited;
 
+import gjum.minecraft.mapsync.mod.MapSyncMod;
 import net.minecraft.client.Minecraft;
 import net.minecraft.client.multiplayer.ClientPacketListener;
 import net.minecraft.core.BlockPos;
@@ -20,7 +20,7 @@ public abstract class MixinClientPacketListener {
 		if (!Minecraft.getInstance().isSameThread()) return; // will be called again on mc thread in a moment
 		try {
 			BlockPos pos = packet.getPos();
-			getMod().handleMcChunkPartialChange(pos.getX() >> 4, pos.getZ() >> 4);
+			MapSyncMod.handleMcChunkPartialChange(pos.getX() >> 4, pos.getZ() >> 4);
 		} catch (Throwable e) {
 			printErrorRateLimited(e);
 		}
@@ -31,7 +31,7 @@ public abstract class MixinClientPacketListener {
 		if (!Minecraft.getInstance().isSameThread()) return; // will be called again on mc thread in a moment
 		try {
 			BlockPos pos = packet.getPos();
-			getMod().handleMcChunkPartialChange(pos.getX() >> 4, pos.getZ() >> 4);
+			MapSyncMod.handleMcChunkPartialChange(pos.getX() >> 4, pos.getZ() >> 4);
 		} catch (Throwable e) {
 			printErrorRateLimited(e);
 		}

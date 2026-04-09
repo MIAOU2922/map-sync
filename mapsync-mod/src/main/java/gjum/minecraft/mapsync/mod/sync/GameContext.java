@@ -142,7 +142,7 @@ public final class GameContext {
 			if (DIMENSION_STATE.getAndSet(gameContext, dimensionState) instanceof final DimensionState previous) {
 				previous.shutDown();
 			}
-			MapSyncMod.getMod().handleDimensionChange(minecraft, level, gameContext);
+			MapSyncMod.handleDimensionChange(minecraft, level, gameContext);
 		});
 	}
 }

@@ -120,7 +120,7 @@ public class SyncClient {
 			LOGGER.info("[{}] Connected to {}", SyncClient.this.name(), this.uri);
 			SyncClient.this.lastError = null;
 			try {
-				MapSyncMod.getMod().handleSyncConnection(SyncClient.this);
+				MapSyncMod.handleSyncConnection(SyncClient.this);
 			}
 			catch (final Exception e) {
 				this.onError(e);
@@ -138,7 +138,7 @@ public class SyncClient {
 				SyncClient.this.shouldReconnect = false;
 			}
 			SyncClient.this.lastError = null;
-			MapSyncMod.getMod().handleSyncDisconnection(SyncClient.this, new CloseContext.Closed(closeCode, reason));
+			MapSyncMod.handleSyncDisconnection(SyncClient.this, new CloseContext.Closed(closeCode, reason));
 		}
 
 		@Override
@@ -189,7 +189,7 @@ public class SyncClient {
 				return;
 			}
 			try {
-				MapSyncMod.getMod().handleSyncPacket(SyncClient.this, packet);
+				MapSyncMod.handleSyncPacket(SyncClient.this, packet);
 			}
 			catch (final Exception e) {
 				this.onError(e);

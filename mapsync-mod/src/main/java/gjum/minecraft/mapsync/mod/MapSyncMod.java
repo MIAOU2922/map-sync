@@ -1,18 +1,18 @@
 package gjum.minecraft.mapsync.mod;
 
-import static gjum.minecraft.mapsync.mod.Cartography.chunkTileFromLevel;
+import static gjum.minecraft.mapsync.mod.sync.Cartography.chunkTileFromLevel;
 
 import com.mojang.blaze3d.platform.InputConstants;
 import gjum.minecraft.mapsync.mod.config.ModConfig;
-import gjum.minecraft.mapsync.mod.config.ServerConfig;
+import gjum.minecraft.mapsync.mod.config.gui.SyncConnectionsGui;
 import gjum.minecraft.mapsync.mod.data.CatchupChunk;
 import gjum.minecraft.mapsync.mod.data.ChunkTile;
-import gjum.minecraft.mapsync.mod.data.GameAddress;
 import gjum.minecraft.mapsync.mod.data.RegionPos;
 import gjum.minecraft.mapsync.mod.net.CloseContext;
 import gjum.minecraft.mapsync.mod.net.Packet;
 import gjum.minecraft.mapsync.mod.net.SyncClient;
-import gjum.minecraft.mapsync.mod.net.SyncClients;
+import gjum.minecraft.mapsync.mod.sync.DimensionState;
+import gjum.minecraft.mapsync.mod.sync.GameContext;
 import gjum.minecraft.mapsync.mod.net.UnexpectedPacketException;
 import gjum.minecraft.mapsync.mod.net.auth.AuthProcess;
 import gjum.minecraft.mapsync.mod.net.packet.ChunkTilePacket;
@@ -22,11 +22,11 @@ import gjum.minecraft.mapsync.mod.net.packet.ClientboundRegionTimestampsPacket;
 import gjum.minecraft.mapsync.mod.net.packet.ClientboundWelcomePacket;
 import gjum.minecraft.mapsync.mod.net.packet.ServerboundCatchupRequestPacket;
 import gjum.minecraft.mapsync.mod.net.packet.ServerboundChunkTimestampsRequestPacket;
+import gjum.minecraft.mapsync.mod.sync.RenderQueue;
 import it.unimi.dsi.fastutil.objects.Object2LongArrayMap;
 import it.unimi.dsi.fastutil.objects.Object2LongMap;
 
 import java.io.File;
-import java.nio.file.Path;
 import java.nio.file.Paths;
 import java.util.ArrayList;
 import java.util.HashMap;
@@ -34,18 +34,17 @@ import java.util.IdentityHashMap;
 import java.util.List;
 import java.util.Map;
 import net.fabricmc.api.ClientModInitializer;
+import net.fabricmc.fabric.api.client.event.lifecycle.v1.ClientChunkEvents;
 import net.fabricmc.fabric.api.client.event.lifecycle.v1.ClientTickEvents;
 import net.fabricmc.fabric.api.client.keybinding.v1.KeyBindingHelper;
 import net.minecraft.client.KeyMapping;
 import net.minecraft.client.Minecraft;
-import net.minecraft.client.multiplayer.ServerData;
-import net.minecraft.network.protocol.game.ClientboundRespawnPacket;
+import net.minecraft.client.multiplayer.ClientLevel;
 import net.minecraft.resources.Identifier;
 import net.minecraft.world.level.ChunkPos;
 import org.apache.logging.log4j.LogManager;
 import org.apache.logging.log4j.Logger;
 import org.jetbrains.annotations.NotNull;
-import org.jetbrains.annotations.Nullable;
 import org.lwjgl.glfw.GLFW;
 
 public final class MapSyncMod implements ClientModInitializer {
@@ -74,18 +73,6 @@ public final class MapSyncMod implements ClientModInitializer {
 			//"category.map-sync"
 	);
 
-	/**
-	 * Tracks state and render thread for current mc dimension.
-	 * Never access this directly; always go through `getDimensionState()`.
-	 */
-	private @Nullable DimensionState dimensionState;
-
-	/**
-	 * Tracks configuration for current mc server.
-	 * Never access this directly; always go through `getServerConfig()`.
-	 */
-	private @Nullable ServerConfig serverConfig;
-
 	public MapSyncMod() {
 		if (INSTANCE != null) throw new IllegalStateException("Constructor called twice");
 		INSTANCE = this;
@@ -106,28 +93,54 @@ public final class MapSyncMod implements ClientModInitializer {
 				e.printStackTrace();
 			}
 		});
-		SyncClients.initEvents();
+		GameContext.initEvents();
+		ClientChunkEvents.CHUNK_LOAD.register((level, chunk) -> {
+			final GameContext gameContext = GameContext.get().orElse(null);
+			if (gameContext == null) {
+				return;
+			}
+			// TODO batch this up and send multiple chunks at once
+			// TODO disable in nether (no meaningful "surface layer")
+			final DimensionState dimensionState = gameContext.getDimensionState().orElse(null);
+			if (dimensionState == null) {
+				return;
+			}
+			final ChunkPos chunkPos = chunk.getPos();
+			debugLog("received mc chunk: %d,%d".formatted(
+				chunkPos.x,
+				chunkPos.z
+			));
+			final ChunkTile chunkTile = chunkTileFromLevel(level, chunk);
+			// TODO handle journeymap skipping chunks due to rate limiting - probably need mixin on render function
+			if (RenderQueue.areAllMapModsMapping()) {
+				dimensionState.setChunkTimestamp(chunkTile.chunkPos(), chunkTile.timestamp());
+			}
+			for (final SyncClient client : gameContext.getSyncConnections()) {
+				client.sendChunkTile(chunkTile);
+			}
+		});
 	}
 
 	public void handleTick(
 		final @NotNull Minecraft minecraft
 	) {
-		while (openGuiKey.consumeClick()) {
-			minecraft.setScreen(new ModGui(minecraft.screen));
+		final GameContext gameContext = GameContext.get().orElse(null);
+		if (gameContext == null) { // This *shouldn't* ever happen, but just case
+			return;
 		}
 
-		var dimensionState = getDimensionState();
-		if (dimensionState != null) dimensionState.onTick();
+		while (openGuiKey.consumeClick()) {
+			minecraft.setScreen(new SyncConnectionsGui(minecraft.screen, gameContext));
+		}
+
+		gameContext.getDimensionState().ifPresent(DimensionState::onTick);
 	}
 
 	public void handleSyncConnection(
 		final @NotNull SyncClient client
 	) throws Exception {
 		client.authState.set(null);
-		AuthProcess.sendHandshake(
-			client,
-			this.getDimensionState()
-		);
+		AuthProcess.sendHandshake(client);
 	}
 
 	public void handleSyncDisconnection(
@@ -152,74 +165,14 @@ public final class MapSyncMod implements ClientModInitializer {
 		}
 	}
 
-	public void handleRespawn(ClientboundRespawnPacket packet) {
-		debugLog("handleRespawn");
+	/// @param clientLevel This is the *new* dimension.
+	public void handleDimensionChange(
+		final @NotNull Minecraft minecraft,
+		final @NotNull ClientLevel clientLevel,
+		final @NotNull GameContext gameContext
+	) {
+		debugLog("handleDimensionChange");
 		// TODO tell sync server to only send chunks for this dimension now
-	}
-
-	/**
-	 * only null when not connected to a server
-	 */
-	public @Nullable ServerConfig getServerConfig() {
-		final ServerData currentServer = Minecraft.getInstance().getCurrentServer();
-		if (currentServer == null) {
-			serverConfig = null;
-			return null;
-		}
-		GameAddress gameAddress = new GameAddress(currentServer.ip);
-		if (serverConfig == null) {
-			serverConfig = ServerConfig.load(gameAddress);
-		}
-		return serverConfig;
-	}
-
-	/**
-	 * for current dimension
-	 */
-	public @Nullable DimensionState getDimensionState() {
-		if (mc.level == null) return null;
-		var serverConfig = getServerConfig();
-		if (serverConfig == null) return null;
-
-		if (dimensionState != null && dimensionState.dimension != mc.level.dimension()) {
-			shutDownDimensionState();
-		}
-		if (dimensionState == null || dimensionState.hasShutDown) {
-			dimensionState = new DimensionState(serverConfig.gameAddress, mc.level.dimension());
-		}
-		return dimensionState;
-	}
-
-	private void shutDownDimensionState() {
-		if (dimensionState != null) {
-			dimensionState.shutDown();
-			dimensionState = null;
-		}
-	}
-
-	/**
-	 * an entire chunk was received from the mc server;
-	 * send it to the map data server right away.
-	 */
-	public void handleMcFullChunk(int cx, int cz) {
-		// TODO batch this up and send multiple chunks at once
-
-		if (mc.level == null) return;
-		// TODO disable in nether (no meaningful "surface layer")
-		var dimensionState = getDimensionState();
-		if (dimensionState == null) return;
-
-		debugLog("received mc chunk: " + cx + "," + cz);
-
-		var chunkTile = chunkTileFromLevel(mc.level, cx, cz);
-
-		// TODO handle journeymap skipping chunks due to rate limiting - probably need mixin on render function
-		if (RenderQueue.areAllMapModsMapping()) {
-			dimensionState.setChunkTimestamp(chunkTile.chunkPos(), chunkTile.timestamp());
-		}
-		for (SyncClient client : SyncClients.get().orElseThrow()) {
-			client.sendChunkTile(chunkTile);
-		}
 	}
 
 	/**
@@ -237,7 +190,7 @@ public final class MapSyncMod implements ClientModInitializer {
 
 	public void handleRegionTimestamps(SyncClient client, ClientboundRegionTimestampsPacket packet) {
 		client.authState.requireWelcomed();
-		DimensionState dimension = getDimensionState();
+		DimensionState dimension = client.gameContext.getDimensionState().orElse(null);
 		if (dimension == null) return;
 		if (!dimension.dimension.identifier().toString().equals(packet.dimension())) {
 			return;
@@ -262,13 +215,11 @@ public final class MapSyncMod implements ClientModInitializer {
 	public void handleSharedChunk(SyncClient client, ChunkTile chunkTile) {
 		client.authState.requireWelcomed();
 		debugLog("received shared chunk: " + chunkTile.chunkPos());
-		for (SyncClient syncClient : SyncClients.get().orElseThrow()) {
+		for (SyncClient syncClient : client.gameContext.getSyncConnections()) {
 			syncClient.setServerKnownChunkHash(chunkTile.chunkPos(), chunkTile.dataHash());
 		}
 
-		var dimensionState = getDimensionState();
-		if (dimensionState == null) return;
-		dimensionState.processSharedChunk(chunkTile);
+		client.gameContext.getDimensionState().ifPresent((dimensionState) -> dimensionState.processSharedChunk(chunkTile));
 	}
 
 	public void handleCatchupData(SyncClient client, ClientboundChunkTimestampsResponsePacket packet) {
@@ -276,10 +227,10 @@ public final class MapSyncMod implements ClientModInitializer {
 		for (CatchupChunk chunk : packet.chunks()) {
 			chunk.syncClient = client;
 		}
-		var dimensionState = getDimensionState();
-		if (dimensionState == null) return;
-		debugLog("received catchup: " + packet.chunks().size() + " " + client.syncAddress);
-		dimensionState.addCatchupChunks(packet.chunks());
+		client.gameContext.getDimensionState().ifPresent((dimensionState) -> {
+			debugLog("received catchup: " + packet.chunks().size() + " " + client.syncAddress);
+			dimensionState.addCatchupChunks(packet.chunks());
+		});
 	}
 
 	public void requestCatchupData(

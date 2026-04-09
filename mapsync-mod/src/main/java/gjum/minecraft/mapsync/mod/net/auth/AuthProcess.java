@@ -1,6 +1,6 @@
 package gjum.minecraft.mapsync.mod.net.auth;
 
-import gjum.minecraft.mapsync.mod.DimensionState;
+import gjum.minecraft.mapsync.mod.sync.DimensionState;
 import gjum.minecraft.mapsync.mod.net.SyncClient;
 import gjum.minecraft.mapsync.mod.net.UnexpectedPacketException;
 import gjum.minecraft.mapsync.mod.net.packet.ClientboundIdentityRequestPacket;
@@ -19,9 +19,9 @@ import org.jetbrains.annotations.NotNull;
 public final class AuthProcess {
 	private record AwaitingIdentityRequest() implements AuthState {}
 	public static void sendHandshake(
-		final @NotNull SyncClient client,
-		final DimensionState dimensionState
+		final @NotNull SyncClient client
 	) throws Exception {
+		final DimensionState dimensionState = client.gameContext.getDimensionState().orElse(null);
 		if (dimensionState == null) {
 			throw new IllegalStateException("no dimension state");
 		}
@@ -30,7 +30,7 @@ public final class AuthProcess {
 		}
 		client.send(new ServerboundHandshakePacket(
 			MagicValues.VERSION,
-			client.gameAddress,
+			client.gameContext.getGameAddress(),
 			dimensionState.dimension.identifier().toString()
 		));
 	}

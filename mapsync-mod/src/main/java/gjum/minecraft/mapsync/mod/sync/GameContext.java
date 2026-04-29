@@ -121,6 +121,11 @@ public final class GameContext {
 				}
 			}
 		});
+		ClientPlayConnectionEvents.JOIN.register((gameConnection, packetSender, minecraft) -> {
+			if (instance instanceof final GameContext context) {
+				MapSyncMod.handleGameConnection(minecraft, context);
+			}
+		});
 		ClientPlayConnectionEvents.DISCONNECT.register((gameConnection, minecraft) -> {
 			if (INSTANCE.getAndSet((Object) null) instanceof final GameContext context) {
 				context.shutdown();

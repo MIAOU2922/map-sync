@@ -12,6 +12,9 @@ public final class ServerConfig extends JsonConfig {
 	@Expose
 	private ArrayList<String> syncServerAddresses = new ArrayList<>();
 
+	@Expose
+	private boolean autoConnect = false;
+
 	public @NotNull List<@NotNull String> getSyncServerAddresses() {
 		return this.syncServerAddresses.stream()
 			.map(String::trim)
@@ -25,6 +28,16 @@ public final class ServerConfig extends JsonConfig {
 		final @NotNull List<String> syncAddresses
 	) {
 		this.syncServerAddresses = new ArrayList<>(syncAddresses);
+	}
+
+	public boolean shouldAutoConnect() {
+		return this.autoConnect;
+	}
+
+	public void setAutoConnect(
+		final boolean autoConnect
+	) {
+		this.autoConnect = autoConnect;
 	}
 
 	@Override

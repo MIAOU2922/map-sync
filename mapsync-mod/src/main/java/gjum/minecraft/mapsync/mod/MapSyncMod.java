@@ -11,6 +11,7 @@ import gjum.minecraft.mapsync.mod.data.RegionPos;
 import gjum.minecraft.mapsync.mod.net.CloseContext;
 import gjum.minecraft.mapsync.mod.net.Packet;
 import gjum.minecraft.mapsync.mod.net.SyncClient;
+import gjum.minecraft.mapsync.mod.net.packet.ServerboundDimensionChangePacket;
 import gjum.minecraft.mapsync.mod.sync.DimensionState;
 import gjum.minecraft.mapsync.mod.sync.GameContext;
 import gjum.minecraft.mapsync.mod.net.UnexpectedPacketException;
@@ -31,6 +32,7 @@ import java.util.HashMap;
 import java.util.IdentityHashMap;
 import java.util.List;
 import java.util.Map;
+import java.util.Set;
 import net.fabricmc.fabric.api.client.event.lifecycle.v1.ClientChunkEvents;
 import net.fabricmc.fabric.api.client.event.lifecycle.v1.ClientTickEvents;
 import net.fabricmc.fabric.api.client.keybinding.v1.KeyBindingHelper;
@@ -132,14 +134,36 @@ public final class MapSyncMod {
 		}
 	}
 
-	/// @param clientLevel This is the *new* dimension.
-	public static void handleDimensionChange(
+	public static void handleWelcomed(
+		final @NotNull SyncClient client
+	) {
+		if (client.gameContext.getDimensionState().orElse(null) instanceof final DimensionState dimensionState) {
+			client.send(new ServerboundDimensionChangePacket(
+				dimensionState.dimension.identifier()
+			));
+		}
+	}
+
+	public static void handleGameConnection(
 		final @NotNull Minecraft minecraft,
-		final @NotNull ClientLevel clientLevel,
 		final @NotNull GameContext gameContext
 	) {
-		debugLog("handleDimensionChange");
-		// TODO tell sync server to only send chunks for this dimension now
+		if (gameContext.getGameConfig().shouldAutoConnect()) {
+			gameContext.getSyncConnections().setAll(Set.copyOf(
+				gameContext.getGameConfig().getSyncServerAddresses()
+			));
+		}
+	}
+
+	/// @param level This is the *new* dimension.
+	public static void handleDimensionChange(
+		final @NotNull Minecraft minecraft,
+		final @NotNull ClientLevel level,
+		final @NotNull GameContext gameContext
+	) {
+		gameContext.getSyncConnections().broadcast(new ServerboundDimensionChangePacket(
+			level.dimension().identifier()
+		));
 	}
 
 	/**

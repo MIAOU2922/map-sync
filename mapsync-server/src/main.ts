@@ -24,6 +24,7 @@ import {
     Welcomed,
 } from "./auth.ts";
 import { SUPPORTED_VERSIONS } from "./constants.ts";
+import { createOfflineUuid } from "./deps/uuid.ts";
 
 let config: metadata.Config = null!;
 let main: ProtocolHandler = null!;
@@ -150,7 +151,7 @@ export class ProtocolHandler {
             }
             client.auth = new Welcomed(
                 packet.claimedUsername,
-                `AUTH-DISABLED-${packet.claimedUsername}`,
+                createOfflineUuid(packet.claimedUsername),
                 false,
             );
         }

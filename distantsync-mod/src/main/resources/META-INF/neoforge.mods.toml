@@ -1,0 +1,59 @@
+modLoader = "javafml"
+loaderVersion = "[4,)"
+license = "${mod_copyright}"
+issueTrackerURL = "${mod_issues_url}"
+
+[[mods]]
+modId = "distantsync"
+version = "${mod_version}"
+displayName = "${mod_name}"
+displayURL = "${mod_home_url}"
+credits = "${project_authors}"
+authors = "${project_authors}"
+description = '''
+${mod_description}
+'''
+
+[[dependencies.distantsync]]
+modId = "neoforge"
+type = "required"
+versionRange = "[${neoforge_version},)"
+ordering = "NONE"
+side = "CLIENT"
+
+[[dependencies.distantsync]]
+modId = "minecraft"
+type = "required"
+versionRange = "[${minecraft_version},)"
+ordering = "NONE"
+side = "CLIENT"
+
+# Distant Horizons dependency
+[[dependencies.distantsync]]
+modId = "distanthorizons"
+type = "required"
+versionRange = "*"
+ordering = "AFTER"
+side = "CLIENT"
+
+# Optional dependencies (map mods)
+[[dependencies.distantsync]]
+modId = "voxelmap"
+type = "optional"
+versionRange = "*"
+ordering = "AFTER"
+side = "CLIENT"
+
+[[dependencies.distantsync]]
+modId = "journeymap"
+type = "optional"
+versionRange = "*"
+ordering = "AFTER"
+side = "CLIENT"
+
+[[dependencies.distantsync]]
+modId = "xaeroworldmap"
+type = "optional"
+versionRange = "*"
+ordering = "AFTER"
+side = "CLIENT"

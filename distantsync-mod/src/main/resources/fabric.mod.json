@@ -1,0 +1,31 @@
+{
+	"schemaVersion": 1,
+	"id": "distantsync",
+	"version": "${version}",
+	"name": "DistantSync",
+	"description": "Synchronizes Distant Horizons LOD chunks with minimaps for extended terrain visibility.",
+	"authors": [
+		"Gjum"
+	],
+	"contact": {
+		"homepage": "https://github.com/CivPlatform/map-sync",
+		"sources": "https://github.com/CivPlatform/map-sync",
+		"issues": "https://github.com/CivPlatform/map-sync/issues"
+	},
+	"license": "GPL-3.0",
+	"environment": "client",
+	"entrypoints": {
+		"main": []
+	},
+	"depends": {
+		"fabricloader": ">=0.15",
+		"minecraft": "~1.21.1",
+		"java": ">=21",
+		"distanthorizons": "*"
+	},
+	"suggests": {
+		"voxelmap": "*",
+		"journeymap": "*",
+		"xaeroworldmap": "*"
+	}
+}

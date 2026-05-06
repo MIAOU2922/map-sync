@@ -1,0 +1,10 @@
+{
+  "distantsync.name": "DistantSync",
+  "distantsync.description": "Synchronizes Distant Horizons LOD chunks with minimaps",
+  "distantsync.status.dh_found": "Distant Horizons detected",
+  "distantsync.status.dh_not_found": "Distant Horizons not found",
+  "distantsync.status.minimap_found": "Minimap detected: %s",
+  "distantsync.status.minimap_not_found": "No supported minimap found",
+  "distantsync.status.syncing": "Syncing LOD chunks...",
+  "distantsync.status.idle": "Waiting for LOD updates"
+}

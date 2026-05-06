@@ -1,0 +1,10 @@
+[versions]
+minecraft = "1.21.1"
+# https://projects.neoforged.net/neoforged/neoforge
+neoforge = "21.1.228"
+
+[libraries]
+# https://parchmentmc.org/docs/getting-started
+parchment = { group = "org.parchmentmc.data", name = "parchment-1.21", version = "2024.07.28" }
+
+[plugins]

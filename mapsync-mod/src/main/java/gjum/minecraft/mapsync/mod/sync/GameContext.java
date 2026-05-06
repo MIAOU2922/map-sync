@@ -7,10 +7,12 @@ import java.lang.invoke.MethodHandles;
 import java.lang.invoke.VarHandle;
 import java.util.Objects;
 import java.util.Optional;
-import net.fabricmc.fabric.api.client.event.lifecycle.v1.ClientLifecycleEvents;
-import net.fabricmc.fabric.api.client.event.lifecycle.v1.ClientWorldEvents;
-import net.fabricmc.fabric.api.client.networking.v1.ClientPlayConnectionEvents;
+import net.minecraft.client.Minecraft;
 import net.minecraft.client.multiplayer.ServerData;
+import net.neoforged.bus.api.SubscribeEvent;
+import net.neoforged.neoforge.client.event.ClientPlayerNetworkEvent;
+import net.neoforged.neoforge.common.NeoForge;
+import net.neoforged.neoforge.event.level.LevelEvent;
 import org.jetbrains.annotations.NotNull;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
@@ -85,10 +87,15 @@ public final class GameContext {
 	}
 
 	public static void initEvents() {
-		ClientPlayConnectionEvents.INIT.register((gameConnection, minecraft) -> {
+		NeoForge.EVENT_BUS.register(new GameContextEventHandler());
+	}
+
+	private static class GameContextEventHandler {
+		@SubscribeEvent
+		public void onPlayerLoggedIn(ClientPlayerNetworkEvent.LoggingIn event) {
 			GameContext gameContext = null;
 			try {
-				if (!(gameConnection.getServerData() instanceof final ServerData serverData)) {
+				if (!(Minecraft.getInstance().getCurrentServer() instanceof final ServerData serverData)) {
 					LOGGER.error("Connection doesn't have server data yet... backing out");
 					return;
 				}
@@ -120,34 +127,35 @@ public final class GameContext {
 					previous.shutdown();
 				}
 			}
-		});
-		ClientPlayConnectionEvents.JOIN.register((gameConnection, packetSender, minecraft) -> {
+
 			if (instance instanceof final GameContext context) {
-				MapSyncMod.handleGameConnection(minecraft, context);
+				MapSyncMod.handleGameConnection(Minecraft.getInstance(), context);
 			}
-		});
-		ClientPlayConnectionEvents.DISCONNECT.register((gameConnection, minecraft) -> {
+		}
+
+		@SubscribeEvent
+		public void onPlayerLoggedOut(ClientPlayerNetworkEvent.LoggingOut event) {
 			if (INSTANCE.getAndSet((Object) null) instanceof final GameContext context) {
 				context.shutdown();
 			}
-		});
-		ClientLifecycleEvents.CLIENT_STOPPING.register((minecraft) -> {
-			if (INSTANCE.getAndSet((Object) null) instanceof final GameContext context) {
-				context.shutdown();
-			}
-		});
-		ClientWorldEvents.AFTER_CLIENT_WORLD_CHANGE.register((minecraft, level) -> {
+		}
+
+		@SubscribeEvent
+		public void onLevelLoad(LevelEvent.Load event) {
 			if (!(instance instanceof final GameContext gameContext)) {
 				return;
 			}
-			final var dimensionState = new DimensionState(
-				gameContext.getGameAddress(),
-				level.dimension()
-			);
-			if (DIMENSION_STATE.getAndSet(gameContext, dimensionState) instanceof final DimensionState previous) {
-				previous.shutDown();
+			if (event.getLevel().isClientSide() && event.getLevel() instanceof net.minecraft.client.multiplayer.ClientLevel level) {
+				final var dimensionState = new DimensionState(
+					gameContext.getGameAddress(),
+					level.dimension()
+				);
+				if (DIMENSION_STATE.getAndSet(gameContext, dimensionState) instanceof final DimensionState previous) {
+					previous.shutDown();
+				}
+				MapSyncMod.handleDimensionChange(net.minecraft.client.Minecraft.getInstance(), level, gameContext);
 			}
-			MapSyncMod.handleDimensionChange(minecraft, level, gameContext);
-		});
+		}
 	}
 }
+

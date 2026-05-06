@@ -6,7 +6,7 @@ import java.nio.ByteBuffer;
 import java.nio.charset.StandardCharsets;
 import java.util.Objects;
 import net.minecraft.core.Registry;
-import net.minecraft.resources.Identifier;
+import net.minecraft.resources.ResourceLocation;
 import net.minecraft.resources.ResourceKey;
 import org.jetbrains.annotations.NotNull;
 
@@ -70,8 +70,8 @@ public final class BufferReader {
 	}
 
 	/// Convenience function
-	public @NotNull Identifier readIdentifier() throws Exception {
-		return Identifier.parse(this.readString());
+	public @NotNull ResourceLocation readIdentifier() throws Exception {
+		return ResourceLocation.parse(this.readString());
 	}
 
 	/// Convenience function

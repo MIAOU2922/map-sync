@@ -1,5 +1,8 @@
+import com.github.jengelman.gradle.plugins.shadow.tasks.ShadowJar
+
 plugins {
-	alias(libs.plugins.fabricLoom)
+	id("net.neoforged.gradle.userdev") version "7.0.163"
+	alias(libs.plugins.shadow)
 }
 
 // gradle.properties
@@ -17,54 +20,57 @@ version = "${mapsync_version}-${libs.versions.minecraft.get()}"
 group = project_group
 
 private val modLocalDep: Configuration by configurations.creating
+private val shadowBundle: Configuration by configurations.creating
 
 base {
 	archivesName = project_name
 }
 
-loom {
-	runConfigs.configureEach {
-		programArgs += buildList {
-			// Use same username between runClient runs
-			addAll(listOf("--username", "LocalModTester"))
-		}
+runs {
+	configureEach {
+		systemProperty("forge.logging.markers", "REGISTRIES")
+		systemProperty("forge.logging.console.level", "debug")
+	}
+	
+	create("client") {
+		systemProperty("forge.enabledGameTestNamespaces", project_name.lowercase())
+	}
+	
+	create("server") {
+		systemProperty("forge.enabledGameTestNamespaces", project_name.lowercase())
+		arguments.add("--nogui")
 	}
 }
 
 dependencies {
-	minecraft(libs.minecraft)
-	loom {
-		mappings(layered {
-			officialMojangMappings()
-			parchment(libs.parchment)
-		})
-	}
-	modImplementation(libs.fabricLoader)
-	modImplementation(libs.fabricApi)
-
+	implementation("net.neoforged:neoforge:${libs.versions.neoforge.get()}")
+	
 	project(":dep-websockets", configuration = "shadedElements").also {
 		implementation(it)
-		include(it)
+		jarJar(it)
+		shadowBundle(it)
 	}
 
-	modLocalDep(libs.fixChat)
-	modImplementation(libs.modmenu)
-
-	libs.voxelmap.also {
-		modCompileOnly(it)
-		modLocalDep(it) // Uncomment to test VoxelMap
-	}
-	libs.journeymap.also {
-		modCompileOnly(it)
-		//modLocalDep(it) // Uncomment to test JourneyMap
-	}
-	libs.xaerosmap.also {
-		modCompileOnly(it)
-		//modLocalDep(it) // Uncomment to test XaerosMap
-	}
+	// Map mod integrations (compile only)
+	// TODO: Find correct NeoForge Maven coordinates for these mods
+	// libs.voxelmap.also {
+	// 	compileOnly(it)
+	// 	//modLocalDep(it) // Uncomment to test VoxelMap
+	// }
+	// libs.journeymap.also {
+	// 	compileOnly(it)
+	// 	//modLocalDep(it) // Uncomment to test JourneyMap
+	// }
+	// libs.xaerosmap.also {
+	// 	compileOnly(it)
+	// 	//modLocalDep(it) // Uncomment to test XaerosMap
+	// }
 }
 
 repositories {
+	maven(url = "https://maven.neoforged.net/releases") {
+		name = "NeoForged"
+	}
 	maven(url = "https://maven.parchmentmc.org") {
 		name = "ParchmentMC"
 	}
@@ -106,17 +112,12 @@ tasks {
 			this@expansions["mod_source_url"] = project_source_url
 			this@expansions["mod_issues_url"] = project_issues_url
 			this@expansions["minecraft_version"] = libs.versions.minecraft.get()
-			this@expansions["fabric_loader_version"] = libs.versions.fabricLoader.get()
+			this@expansions["neoforge_version"] = libs.versions.neoforge.get()
+			this@expansions["project_authors"] = project_authors
 		}
 		inputs.properties(expansions)
-		filesMatching("fabric.mod.json") {
+		filesMatching("META-INF/neoforge.mods.toml") {
 			expand(expansions)
-			filter {
-				it.replace(
-					"\"%FABRIC_AUTHORS_ARRAY%\"",
-					groovy.json.JsonBuilder(project_authors.split(",")).toString()
-				)
-			}
 		}
 		filesMatching("assets/mapsync/lang/en_us.json") {
 			expand(expansions)
@@ -125,18 +126,13 @@ tasks {
 			expand(expansions)
 		}
 	}
-	val copyRunClientDeps = register<Sync>("copyMapSyncRunClientDependencies") {
-		from(modLocalDep)
-		into(file("run/mods/"))
+	named<ShadowJar>("shadowJar") {
+		archiveClassifier = "all"
+		configurations = listOf(shadowBundle)
 	}
-	runClient {
-		dependsOn(copyRunClientDeps)
-	}
-	val copyDistJar = register<Sync>("distJar") {
-		from(remapJar)
+	
+	register<Sync>("distJar") {
+		from(named("jar"))
 		into(file("dist/"))
-	}
-	build {
-		dependsOn(copyDistJar)
 	}
 }

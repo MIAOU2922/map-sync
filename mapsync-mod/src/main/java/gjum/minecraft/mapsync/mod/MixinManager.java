@@ -2,7 +2,7 @@ package gjum.minecraft.mapsync.mod;
 
 import java.util.List;
 import java.util.Set;
-import net.fabricmc.loader.api.FabricLoader;
+import net.neoforged.fml.ModList;
 import org.jetbrains.annotations.NotNull;
 import org.jetbrains.annotations.Nullable;
 import org.objectweb.asm.tree.ClassNode;
@@ -18,7 +18,7 @@ public final class MixinManager implements IMixinConfigPlugin {
 		final @NotNull String mixinPackage
 	) {
 		this.mixinPackage = mixinPackage;
-		this.isVoxelMapLoaded = FabricLoader.getInstance().isModLoaded("voxelmap");
+		this.isVoxelMapLoaded = ModList.get().isLoaded("voxelmap");
 	}
 
 	@Override

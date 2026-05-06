@@ -3,7 +3,7 @@ package gjum.minecraft.mapsync.mod.net.packet;
 import gjum.minecraft.mapsync.mod.net.Packet;
 import gjum.minecraft.mapsync.mod.net.buffers.BufferWriter;
 import gjum.minecraft.mapsync.mod.utils.Assertions;
-import net.minecraft.resources.Identifier;
+import net.minecraft.resources.ResourceLocation;
 import org.jetbrains.annotations.NotNull;
 
 /// The client should send this to the server:
@@ -14,7 +14,7 @@ import org.jetbrains.annotations.NotNull;
 /// - Prev: [ClientboundWelcomePacket]
 /// - Next: [ClientboundRegionTimestampsPacket]
 public record ServerboundDimensionChangePacket(
-	@NotNull Identifier dimension
+	@NotNull ResourceLocation dimension
 ) implements Packet {
 	public static final int PACKET_ID = 10;
 

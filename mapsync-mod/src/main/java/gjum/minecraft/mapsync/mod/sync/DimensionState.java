@@ -29,7 +29,7 @@ public class DimensionState {
 
 	DimensionState(GameAddress gameAddress, ResourceKey<Level> dimension) {
 		this.dimension = dimension;
-		chunkMeta = new DimensionChunkMeta(gameAddress, dimension.identifier());
+		chunkMeta = new DimensionChunkMeta(gameAddress, dimension.location());
 		renderQueue = new RenderQueue(this);
 		catchup = new CatchupLogic(this);
 	}
@@ -108,3 +108,4 @@ public class DimensionState {
 		catchup.maybeRequestMoreCatchup();
 	}
 }
+

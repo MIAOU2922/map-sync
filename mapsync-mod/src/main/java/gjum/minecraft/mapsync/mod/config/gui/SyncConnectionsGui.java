@@ -133,7 +133,7 @@ public final class SyncConnectionsGui extends Screen {
 			guiGraphics.drawString(
 				this.font,
 				"In dimension %s, received %d chunks, rendered %d, rendering %d".formatted(
-					dimensionState.dimension.identifier(),
+					dimensionState.dimension.location(),
 					dimensionState.getNumChunksReceived(),
 					dimensionState.getNumChunksRendered(),
 					dimensionState.getRenderQueueSize()
@@ -183,3 +183,4 @@ public final class SyncConnectionsGui extends Screen {
 		this.minecraft.setScreen(this.parentScreen);
 	}
 }
+

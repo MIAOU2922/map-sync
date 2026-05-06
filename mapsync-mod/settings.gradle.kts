@@ -3,7 +3,7 @@
 
 pluginManagement {
 	repositories {
-		maven(url = "https://maven.fabricmc.net/")
+		maven(url = "https://maven.neoforged.net/releases")
 		mavenCentral()
 		gradlePluginPortal()
 	}

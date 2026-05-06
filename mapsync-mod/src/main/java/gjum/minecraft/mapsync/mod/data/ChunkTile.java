@@ -35,7 +35,7 @@ public record ChunkTile(
 	 * without columns
 	 */
 	public void writeMetadata(BufferWriter writer) throws Exception {
-		writer.writeString(dimension.identifier().toString());
+		writer.writeString(dimension.location().toString());
 		writer.writeInt32(x);
 		writer.writeInt32(z);
 		writer.writeInt64(timestamp);
@@ -64,3 +64,4 @@ public record ChunkTile(
 		return new ChunkTile(dimension, x, z, timestamp, dataVersion, hash, columns);
 	}
 }
+

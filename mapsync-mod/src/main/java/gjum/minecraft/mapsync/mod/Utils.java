@@ -4,6 +4,7 @@ import java.util.HashMap;
 import net.minecraft.client.Minecraft;
 import net.minecraft.core.Registry;
 import net.minecraft.core.registries.Registries;
+import net.minecraft.resources.ResourceKey;
 import net.minecraft.world.level.biome.Biome;
 import org.jetbrains.annotations.NotNull;
 
@@ -11,7 +12,7 @@ public class Utils {
 	public static final Minecraft mc = Minecraft.getInstance();
 
 	public static Registry<Biome> getBiomeRegistry() {
-		return Minecraft.getInstance().level.registryAccess().lookupOrThrow(Registries.BIOME);
+		return Minecraft.getInstance().level.registryAccess().registryOrThrow(Registries.BIOME);
 	}
 
 	private static HashMap<String, Long> lastTimeSeenError = new HashMap<>();
@@ -28,3 +29,4 @@ public class Utils {
 		}
 	}
 }
+

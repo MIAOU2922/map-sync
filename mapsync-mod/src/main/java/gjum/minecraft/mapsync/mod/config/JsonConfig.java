@@ -8,7 +8,7 @@ import java.io.FileReader;
 import java.nio.file.Files;
 import java.nio.file.Path;
 import java.util.Objects;
-import net.fabricmc.loader.api.FabricLoader;
+import net.neoforged.fml.loading.FMLPaths;
 import org.jetbrains.annotations.NotNull;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
@@ -70,6 +70,6 @@ abstract class JsonConfig {
 	}
 
 	protected static @NotNull Path getConfigDir() {
-		return FabricLoader.getInstance().getConfigDir().resolve("MapSync");
+		return FMLPaths.CONFIGDIR.get().resolve("MapSync");
 	}
 }

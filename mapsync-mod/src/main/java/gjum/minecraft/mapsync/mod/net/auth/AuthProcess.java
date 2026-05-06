@@ -50,7 +50,7 @@ public final class AuthProcess {
 				md.update(clientSalt);
 				serverIdHex = HexFormat.of().formatHex(md.digest());
 			}
-			Minecraft.getInstance().services().sessionService().joinServer(
+			Minecraft.getInstance().getMinecraftSessionService().joinServer(
 				session.getProfileId(),
 				session.getAccessToken(),
 				serverIdHex

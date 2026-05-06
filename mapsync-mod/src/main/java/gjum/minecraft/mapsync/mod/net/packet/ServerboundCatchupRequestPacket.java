@@ -5,7 +5,7 @@ import gjum.minecraft.mapsync.mod.net.buffers.BufferWriter;
 import gjum.minecraft.mapsync.mod.utils.Assertions;
 import gjum.minecraft.mapsync.mod.utils.MagicValues;
 import java.util.Map;
-import net.minecraft.resources.Identifier;
+import net.minecraft.resources.ResourceLocation;
 import net.minecraft.world.level.ChunkPos;
 import org.apache.commons.lang3.IntegerRange;
 import org.jetbrains.annotations.NotNull;
@@ -17,7 +17,7 @@ import org.jetbrains.annotations.NotNull;
 /// - Prev: [ClientboundChunkTimestampsResponsePacket]
 /// - Next: [ChunkTilePacket]
 public record ServerboundCatchupRequestPacket(
-	@NotNull Identifier dimension,
+	@NotNull ResourceLocation dimension,
 	short regionX,
 	short regionZ,
 	@NotNull Map<@NotNull ChunkPos, @NotNull Long> chunks

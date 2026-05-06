@@ -26,6 +26,7 @@ import gjum.minecraft.mapsync.mod.net.packet.ServerboundChunkTimestampsRequestPa
 import gjum.minecraft.mapsync.mod.sync.RenderQueue;
 import it.unimi.dsi.fastutil.objects.Object2LongArrayMap;
 import it.unimi.dsi.fastutil.objects.Object2LongMap;
+import net.minecraft.world.level.chunk.LevelChunk;
 
 import java.util.ArrayList;
 import java.util.HashMap;
@@ -33,76 +34,99 @@ import java.util.IdentityHashMap;
 import java.util.List;
 import java.util.Map;
 import java.util.Set;
-import net.fabricmc.fabric.api.client.event.lifecycle.v1.ClientChunkEvents;
-import net.fabricmc.fabric.api.client.event.lifecycle.v1.ClientTickEvents;
-import net.fabricmc.fabric.api.client.keybinding.v1.KeyBindingHelper;
 import net.minecraft.client.KeyMapping;
 import net.minecraft.client.Minecraft;
 import net.minecraft.client.multiplayer.ClientLevel;
-import net.minecraft.resources.Identifier;
+import net.minecraft.resources.ResourceLocation;
 import net.minecraft.world.level.ChunkPos;
+import net.neoforged.api.distmarker.Dist;
+import net.neoforged.bus.api.IEventBus;
+import net.neoforged.bus.api.SubscribeEvent;
+import net.neoforged.fml.common.Mod;
+import net.neoforged.fml.event.lifecycle.FMLClientSetupEvent;
+import net.neoforged.neoforge.client.event.ClientTickEvent;
+import net.neoforged.neoforge.client.event.RegisterKeyMappingsEvent;
+import net.neoforged.neoforge.common.NeoForge;
+import net.neoforged.neoforge.event.level.ChunkEvent;
 import org.apache.logging.log4j.LogManager;
 import org.apache.logging.log4j.Logger;
 import org.jetbrains.annotations.ApiStatus;
 import org.jetbrains.annotations.NotNull;
 import org.lwjgl.glfw.GLFW;
 
+@Mod(value = "mapsync", dist = Dist.CLIENT)
 public final class MapSyncMod {
 	public static final Logger logger = LogManager.getLogger(MapSyncMod.class);
 
-	private static final KeyMapping.Category KEY_MAPPING_CATEGORY = KeyMapping.Category.register(Identifier.fromNamespaceAndPath("mapsync", "general"));
 	private static final KeyMapping OPEN_GUI_KEY = new KeyMapping(
 		"key.map-sync.openGui",
-		InputConstants.Type.KEYSYM,
 		GLFW.GLFW_KEY_COMMA,
-		KEY_MAPPING_CATEGORY
+		"key.categories.mapsync"
 	);
 
 	public static ModConfig modConfig;
 
-	@ApiStatus.Internal
-	public static void bootstrap() {
-		KeyBindingHelper.registerKeyBinding(OPEN_GUI_KEY);
+	public MapSyncMod(IEventBus modBus) {
+		modBus.addListener(this::onClientSetup);
+		modBus.addListener(this::onRegisterKeyMappings);
+		NeoForge.EVENT_BUS.register(this);
+	}
 
+	@ApiStatus.Internal
+	public void onClientSetup(FMLClientSetupEvent event) {
 		modConfig = ModConfig.load();
 		modConfig.save(); // creates the default file if it doesn't exist yet
-
-		ClientTickEvents.START_CLIENT_TICK.register((minecraft) -> {
-			final GameContext gameContext = GameContext.get().orElse(null);
-			if (gameContext == null) { // This *shouldn't* ever happen, but just case
-				return;
-			}
-			while (OPEN_GUI_KEY.consumeClick()) {
-				minecraft.setScreen(new SyncConnectionsGui(minecraft.screen, gameContext));
-			}
-			gameContext.getDimensionState().ifPresent(DimensionState::onTick);
-		});
 		GameContext.initEvents();
-		ClientChunkEvents.CHUNK_LOAD.register((level, chunk) -> {
-			final GameContext gameContext = GameContext.get().orElse(null);
-			if (gameContext == null) {
-				return;
-			}
-			// TODO batch this up and send multiple chunks at once
-			// TODO disable in nether (no meaningful "surface layer")
-			final DimensionState dimensionState = gameContext.getDimensionState().orElse(null);
-			if (dimensionState == null) {
-				return;
-			}
-			final ChunkPos chunkPos = chunk.getPos();
-			debugLog("received mc chunk: %d,%d".formatted(
-				chunkPos.x,
-				chunkPos.z
-			));
-			final ChunkTile chunkTile = chunkTileFromLevel(level, chunk);
-			// TODO handle journeymap skipping chunks due to rate limiting - probably need mixin on render function
-			if (RenderQueue.areAllMapModsMapping()) {
-				dimensionState.setChunkTimestamp(chunkTile.chunkPos(), chunkTile.timestamp());
-			}
-			for (final SyncClient client : gameContext.getSyncConnections()) {
-				client.sendChunkTile(chunkTile);
-			}
-		});
+	}
+
+	@ApiStatus.Internal
+	public void onRegisterKeyMappings(RegisterKeyMappingsEvent event) {
+		event.register(OPEN_GUI_KEY);
+	}
+
+	@SubscribeEvent
+	public void onClientTick(ClientTickEvent.Pre event) {
+		final GameContext gameContext = GameContext.get().orElse(null);
+		if (gameContext == null) { // This *shouldn't* ever happen, but just case
+			return;
+		}
+		while (OPEN_GUI_KEY.consumeClick()) {
+			Minecraft.getInstance().setScreen(new SyncConnectionsGui(Minecraft.getInstance().screen, gameContext));
+		}
+		gameContext.getDimensionState().ifPresent(DimensionState::onTick);
+	}
+
+	@SubscribeEvent
+	public void onChunkLoad(ChunkEvent.Load event) {
+		if (!(event.getLevel() instanceof ClientLevel level)) {
+			return;
+		}
+		final GameContext gameContext = GameContext.get().orElse(null);
+		if (gameContext == null) {
+			return;
+		}
+		// TODO batch this up and send multiple chunks at once
+		// TODO disable in nether (no meaningful "surface layer")
+		final DimensionState dimensionState = gameContext.getDimensionState().orElse(null);
+		if (dimensionState == null) {
+			return;
+		}
+		final ChunkPos chunkPos = event.getChunk().getPos();
+		debugLog("received mc chunk: %d,%d".formatted(
+			chunkPos.x,
+			chunkPos.z
+		));
+		if (!(event.getChunk() instanceof LevelChunk levelChunk)) {
+			return;
+		}
+		final ChunkTile chunkTile = chunkTileFromLevel(level, levelChunk);
+		// TODO handle journeymap skipping chunks due to rate limiting - probably need mixin on render function
+		if (RenderQueue.areAllMapModsMapping()) {
+			dimensionState.setChunkTimestamp(chunkTile.chunkPos(), chunkTile.timestamp());
+		}
+		for (final SyncClient client : gameContext.getSyncConnections()) {
+			client.sendChunkTile(chunkTile);
+		}
 	}
 
 	public static void handleSyncConnection(
@@ -139,7 +163,7 @@ public final class MapSyncMod {
 	) {
 		if (client.gameContext.getDimensionState().orElse(null) instanceof final DimensionState dimensionState) {
 			client.send(new ServerboundDimensionChangePacket(
-				dimensionState.dimension.identifier()
+				dimensionState.dimension.location()
 			));
 		}
 	}
@@ -162,7 +186,7 @@ public final class MapSyncMod {
 		final @NotNull GameContext gameContext
 	) {
 		gameContext.getSyncConnections().broadcast(new ServerboundDimensionChangePacket(
-			level.dimension().identifier()
+			level.dimension().location()
 		));
 	}
 
@@ -178,7 +202,7 @@ public final class MapSyncMod {
 		client.authState.requireWelcomed();
 		DimensionState dimension = client.gameContext.getDimensionState().orElse(null);
 		if (dimension == null) return;
-		if (!dimension.dimension.identifier().toString().equals(packet.dimension())) {
+		if (!dimension.dimension.location().toString().equals(packet.dimension())) {
 			return;
 		}
 
@@ -247,7 +271,7 @@ public final class MapSyncMod {
 			for (final var byRegionEntry : regionChunkRequests.entrySet()) {
 				final RegionPos regionPos = byRegionEntry.getKey();
 				syncConnection.send(new ServerboundCatchupRequestPacket(
-					dimensionState.dimension.identifier(),
+					dimensionState.dimension.location(),
 					(short) regionPos.x(),
 					(short) regionPos.z(),
 					byRegionEntry.getValue()
@@ -263,3 +287,5 @@ public final class MapSyncMod {
 		}
 	}
 }
+
+

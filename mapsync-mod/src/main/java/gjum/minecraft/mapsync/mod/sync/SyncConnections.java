@@ -10,7 +10,6 @@ import java.util.Set;
 import java.util.concurrent.ConcurrentHashMap;
 import org.jetbrains.annotations.NotNull;
 import org.jetbrains.annotations.Nullable;
-import org.jspecify.annotations.NonNull;
 
 public final class SyncConnections implements Iterable<SyncClient> {
 	public final GameContext gameContext;
@@ -24,7 +23,7 @@ public final class SyncConnections implements Iterable<SyncClient> {
 	}
 
 	@Override
-	public @NonNull Iterator<SyncClient> iterator() {
+	public @NotNull Iterator<SyncClient> iterator() {
 		return this.clients.values().iterator();
 	}
 
@@ -97,3 +96,4 @@ public final class SyncConnections implements Iterable<SyncClient> {
 		}
 	}
 }
+

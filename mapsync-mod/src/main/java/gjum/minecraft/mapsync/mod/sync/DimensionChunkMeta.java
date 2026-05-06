@@ -13,8 +13,8 @@ import java.nio.file.Path;
 import java.util.Arrays;
 import java.util.Map;
 import java.util.concurrent.ConcurrentHashMap;
-import net.fabricmc.loader.api.FabricLoader;
-import net.minecraft.resources.Identifier;
+import net.neoforged.fml.loading.FMLPaths;
+import net.minecraft.resources.ResourceLocation;
 import net.minecraft.world.level.ChunkPos;
 import org.apache.commons.io.FileUtils;
 import org.jetbrains.annotations.NotNull;
@@ -36,11 +36,10 @@ public class DimensionChunkMeta {
 
 	DimensionChunkMeta(
 		final @NotNull GameAddress gameAddress,
-		final @NotNull Identifier dimension
+		final @NotNull ResourceLocation dimension
 	) {
 		this.gameAddress = gameAddress;
-		this.dimensionDirPath = FabricLoader.getInstance()
-			.getGameDir()
+		this.dimensionDirPath = FMLPaths.GAMEDIR.get()
 			.resolve("data")
 			.resolve("MapSync")
 			.resolve(gameAddress.asFsName())
@@ -121,3 +120,4 @@ public class DimensionChunkMeta {
 		);
 	}
 }
+

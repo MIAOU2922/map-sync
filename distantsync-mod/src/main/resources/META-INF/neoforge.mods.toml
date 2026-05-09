@@ -1,17 +1,17 @@
 modLoader = "javafml"
 loaderVersion = "[4,)"
-license = "${mod_copyright}"
-issueTrackerURL = "${mod_issues_url}"
+license = "MIAOU2922"
+issueTrackerURL = "https://github.com/MIAOU2922/map-sync/issues"
 
 [[mods]]
 modId = "distantsync"
-version = "${mod_version}"
-displayName = "${mod_name}"
-displayURL = "${mod_home_url}"
-credits = "${project_authors}"
-authors = "${project_authors}"
+version = "21.1.228-1"
+displayName = "DistantSync"
+displayURL = "https://github.com/MIAOU2922/map-sync"
+credits = "MIAOU2922"
+authors = "MIAOU2922"
 description = '''
-${mod_description}
+Bridges Distant Horizons LOD chunks to minimap mods (VoxelMap, JourneyMap, Xaero's), filling unexplored areas with LOD terrain data.
 '''
 
 [[dependencies.distantsync]]

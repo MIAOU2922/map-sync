@@ -33,6 +33,9 @@ public class SyncClient {
 
 	public synchronized void sendChunkTile(ChunkTile chunkTile) {
 		if (this.state() != ConnectionState.WELCOMED) {
+			MapSyncMod.debugLog("[%s] Not sending chunk %s - not welcomed (state: %s)".formatted(
+				this.name(), chunkTile.chunkPos(), this.state()
+			));
 			return;
 		}
 
@@ -42,6 +45,7 @@ public class SyncClient {
 			return; // server already has this chunk
 		}
 
+		MapSyncMod.debugLog("[%s] Sending chunk to server: %s".formatted(this.name(), chunkTile.chunkPos()));
 		send(new ChunkTilePacket(chunkTile));
 
 		// assume packet will reach server eventually

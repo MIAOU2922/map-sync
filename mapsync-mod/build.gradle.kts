@@ -52,19 +52,12 @@ dependencies {
 	}
 
 	// Map mod integrations (compile only)
-	// TODO: Find correct NeoForge Maven coordinates for these mods
-	// libs.voxelmap.also {
-	// 	compileOnly(it)
-	// 	//modLocalDep(it) // Uncomment to test VoxelMap
-	// }
-	// libs.journeymap.also {
-	// 	compileOnly(it)
-	// 	//modLocalDep(it) // Uncomment to test JourneyMap
-	// }
-	// libs.xaerosmap.also {
-	// 	compileOnly(it)
-	// 	//modLocalDep(it) // Uncomment to test XaerosMap
-	// }
+	// Using local JARs from h:\git\map-sync\Mods
+	compileOnly(files("../Mods/journeymap-neoforge-1.21.1-6.0.0-beta.66.jar"))
+	compileOnly(files("../Mods/xaeroworldmap-neoforge-1.21.1-1.40.16.jar"))
+	compileOnly(files("../Mods/xaerominimap-neoforge-1.21.1-25.3.13.jar"))
+	
+	// VoxelMap not available in this version - integration disabled
 }
 
 repositories {

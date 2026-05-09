@@ -34,7 +34,12 @@ runs {
 dependencies {
 	implementation("net.neoforged:neoforge:${libs.versions.neoforge.get()}")
 	
-	// TODO: Add Distant Horizons and map mod integrations when needed
+	// Distant Horizons integration (compile only)
+	compileOnly(files("../Mods/DistantHorizons-3.0.3-b-1.21.1-fabric-neoforge.jar"))
+	
+	// Minimap mods (compile only for integration)
+	compileOnly(files("../Mods/journeymap-neoforge-1.21.1-6.0.0-beta.66.jar"))
+	compileOnly(files("../Mods/xaeroworldmap-neoforge-1.21.1-1.40.16.jar"))
 }
 
 repositories {
@@ -57,6 +62,24 @@ java {
 }
 
 tasks {
+	processResources {
+		val replaceProperties = mapOf(
+			"mod_version" to distantsync_version,
+			"mod_name" to project_name,
+			"mod_description" to project_description,
+			"mod_copyright" to project_copyright,
+			"mod_home_url" to project_home_url,
+			"mod_issues_url" to project_issues_url,
+			"project_authors" to project_authors,
+			"minecraft_version" to libs.versions.minecraft.get(),
+			"neoforge_version" to libs.versions.neoforge.get()
+		)
+		inputs.properties(replaceProperties)
+		filesMatching("META-INF/neoforge.mods.toml") {
+			expand(replaceProperties)
+		}
+	}
+	
 	compileJava {
 		options.encoding = "UTF-8"
 		options.release = 21

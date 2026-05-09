@@ -162,8 +162,16 @@ public final class MapSyncMod {
 		final @NotNull SyncClient client
 	) {
 		if (client.gameContext.getDimensionState().orElse(null) instanceof final DimensionState dimensionState) {
+			debugLog("[%s] Sending dimension to server: %s".formatted(
+				client.name(),
+				dimensionState.dimension.location()
+			));
 			client.send(new ServerboundDimensionChangePacket(
 				dimensionState.dimension.location()
+			));
+		} else {
+			debugLog("[%s] WARNING: No dimension state when welcomed! Cannot send dimension to server.".formatted(
+				client.name()
 			));
 		}
 	}

@@ -1,18 +1,18 @@
 modLoader = "javafml"
 loaderVersion = "[4,)"
-license = "${mod_copyright}"
-issueTrackerURL = "${mod_issues_url}"
+license = "MIAOU2922"
+issueTrackerURL = "https://github.com/MIAOU2922/map-sync/issues"
 
 [[mods]]
 modId = "mapsync"
-version = "${mod_version}"
-displayName = "${mod_name}"
-displayURL = "${mod_home_url}"
+version = "21.1.228-1"
+displayName = "MapSync"
+displayURL = "https://github.com/MIAOU2922/map-sync"
 logoFile = "assets/mapsync/icon.png"
-credits = "${project_authors}"
-authors = "${project_authors}"
+credits = "Gjum, Protonull, okx, Huskydog9988, specificlanguage, SirAlador, klaribot, Sheepy_9, MIAOU2922"
+authors = "Gjum, Protonull, okx, Huskydog9988, specificlanguage, SirAlador, klaribot, Sheepy_9, MIAOU2922"
 description = '''
-${mod_description}
+Real-time terrain synchronization: See exactly what your friends see, as they explore it.
 '''
 
 [[dependencies.mapsync]]

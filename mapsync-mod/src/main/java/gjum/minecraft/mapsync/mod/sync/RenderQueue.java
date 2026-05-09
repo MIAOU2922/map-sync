@@ -3,6 +3,10 @@ package gjum.minecraft.mapsync.mod.sync;
 import static gjum.minecraft.mapsync.mod.MapSyncMod.debugLog;
 
 import gjum.minecraft.mapsync.mod.data.ChunkTile;
+import gjum.minecraft.mapsync.mod.integrations.journeymap.JourneyMapHelper;
+// VoxelMap not available in this version
+// import gjum.minecraft.mapsync.mod.integrations.voxelmap.VoxelMapHelper;
+import gjum.minecraft.mapsync.mod.integrations.xaerosmap.XaerosWorldMapHelper;
 import java.util.Comparator;
 import java.util.concurrent.PriorityBlockingQueue;
 import net.minecraft.client.Minecraft;
@@ -52,9 +56,16 @@ public class RenderQueue {
 					return; // world closed; all queued chunks can't be rendered
 				}
 
-				// TODO: Re-enable map mod integration checks once integrations are ported
-				// For now, we'll just process the queue without checking map mod status
-				
+				if (!JourneyMapHelper.isJourneyMapNotAvailable && !JourneyMapHelper.isMapping()
+						// VoxelMap not available in this version
+						// || VoxelMapHelper.isModAvailable && !VoxelMapHelper.isMapping()
+						|| !XaerosWorldMapHelper.isXaerosWorldMapNotAvailable && !XaerosWorldMapHelper.isMapping()
+				) {
+					debugLog("render is waiting til map mod is ready");
+					Thread.sleep(1000);
+					continue;
+				}
+
 				var chunkTile = queue.poll();
 				if (chunkTile == null) return;
 
@@ -68,10 +79,16 @@ public class RenderQueue {
 					// don't overwrite newer data with older data
 					debugLog("skipping render outdated " + chunkTile.chunkPos());
 				} else {
-					// TODO: Re-enable map mod rendering once integrations are ported
-					// For now, just update the timestamp
-					debugLog("processed " + chunkTile.chunkPos() + " queue=" + queue.size());
-					dimensionState.setChunkTimestamp(chunkTile.chunkPos(), chunkTile.timestamp());
+					// VoxelMap not available in this version
+					// boolean voxelRendered = VoxelMapHelper.updateWithChunkTile(chunkTile);
+					boolean renderedJM = JourneyMapHelper.updateWithChunkTile(chunkTile);
+					boolean xaeroRendered = XaerosWorldMapHelper.updateWithChunkTile(chunkTile);
+
+					debugLog("rendered? " + (renderedJM || xaeroRendered) + " " + chunkTile.chunkPos() + " queue=" + queue.size());
+
+					if (renderedJM || xaeroRendered) {
+						dimensionState.setChunkTimestamp(chunkTile.chunkPos(), chunkTile.timestamp());
+					} // otherwise, update this chunk again when server sends it again
 				}
 
 				// count skipped(outdated) chunks too so DimensionState's "received" vs "rendered" count matches up
@@ -89,7 +106,6 @@ public class RenderQueue {
 	}
 
 	public static boolean areAllMapModsMapping() {
-		// TODO: Re-enable when map mod integrations are ported
-		return true;
+		return JourneyMapHelper.isMapping();
 	}
 }
